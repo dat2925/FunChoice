@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "FunChoice",
+  "mainBinaryName": "FunChoice",
+  "version": "1.2.16",
+  "identifier": "vn.solotech.meteor",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [{"label":"main","title":"FunChoice · SoloTech","width":1440,"height":950,"minWidth":820,"minHeight":650}],
+    "security": {"csp":"default-src 'self'; script-src 'self'; connect-src ipc: http://ipc.localhost; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; object-src 'none'; base-uri 'none'"}
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "publisher": "SoloTech",
+    "icon": ["icons/solotech.ico"],
+    "windows": {
+      "webviewInstallMode": {"type":"offlineInstaller","silent":true},
+      "nsis": {
+        "installerIcon": "icons/solotech.ico",
+        "uninstallerIcon": "icons/solotech.ico",
+        "sidebarImage": "installer/solotech-sidebar.bmp",
+        "headerImage": "installer/solotech-header.bmp",
+        "compression": "zlib"
+      }
+    }
+  }
+}

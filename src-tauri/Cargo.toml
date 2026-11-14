@@ -1,0 +1,27 @@
+[package]
+name = "solotech-meteor"
+version = "1.2.16"
+edition = "2021"
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-single-instance = "2"
+rusqlite = { version = "0.37", features = ["bundled", "backup"] }
+serde = { version = "1", features = ["derive"] }
+uuid = { version = "1", features = ["v4"] }
+rand = "0.9"
+tempfile = "3"
+serde_json = "1"
+ed25519-dalek = "2"
+base64 = "0.23"
+hex = "0.4"
+sha2 = "0.10"
+winreg = "0.56"
+
+[profile.release]
+opt-level = 2
+strip = true
+
+

@@ -1,0 +1,7 @@
+{
+  "identifier": "vn.solotech.meteor.test",
+  "build": {
+    "beforeBuildCommand": "npm run build -- --outDir dist-test --emptyOutDir",
+    "frontendDist": "../dist-test"
+  }
+}
