@@ -12,4 +12,10 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import './style.css'
 
+function preventFileNavigation(event: DragEvent) {
+  if (event.dataTransfer?.types.includes('Files')) event.preventDefault()
+}
+window.addEventListener('dragover', preventFileNavigation)
+window.addEventListener('drop', preventFileNavigation)
+
 createRoot(document.getElementById('root')!).render(<App />)

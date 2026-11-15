@@ -37,6 +37,11 @@ $manifest = [ordered]@{
         }
     }
 }
+$notesPath = Join-Path $PWD.Path "release-notes/$version.md"
+if (Test-Path -LiteralPath $notesPath -PathType Leaf) {
+    $notes = (Get-Content -LiteralPath $notesPath -Raw -Encoding UTF8).Trim()
+    if ($notes) { $manifest['notes'] = $notes }
+}
 $manifestPath = Join-Path $PWD.Path 'release/latest.json'
 [IO.File]::WriteAllText($manifestPath, ($manifest | ConvertTo-Json -Depth 5), [Text.UTF8Encoding]::new($false))
 Get-Item -LiteralPath "release/$installer", "release/$installer.sig", $manifestPath | Select-Object Name,Length

@@ -3,10 +3,10 @@ import { useEffect, useState } from 'react'
 import { api, type Classroom, type Question, type Student } from './api'
 import { errorText } from './Modal'
 import ProductBrand from './ProductBrand'
-import QuestionCard from './QuestionCard'
+import QuestionCard, { canGradeQuestion } from './QuestionCard'
 
 interface Team { name: string; members: Student[] }
-interface Match { teams: Team[]; rounds: number; scores: number[]; turn: number; questions: Question[] }
+interface Match { teams: Team[]; rounds: number; scores: number[]; turn: number; scored: boolean; questions: Question[] }
 
 function shuffle<T>(items: T[]) {
   const shuffled = [...items]
@@ -51,16 +51,17 @@ export default function Relay({ classroom, students, back, openQuestions, onMatc
 
   function start() {
     if (!canStart || !bank) return
-    setMatch({ teams, rounds: roundCount, scores: teams.map(() => 0), turn: 0, questions: shuffle(bank) })
+    setMatch({ teams, rounds: roundCount, scores: teams.map(() => 0), turn: 0, scored: false, questions: shuffle(bank) })
   }
 
-  function score(points: number) {
+  function score(points: number, advance = true) {
     if (!match) return
     const turn = match.turn
     setMatch((current) => {
-      if (!current || current.turn !== turn || turn >= current.rounds * current.teams.length) return current
+      if (!current || current.turn !== turn || turn >= current.rounds * current.teams.length || (current.scored && !advance)) return current
       const team = turn % current.teams.length
-      return { ...current, turn: turn + 1, scores: current.scores.map((value, i) => i === team ? value + points : value) }
+      const scores = current.scored ? current.scores : current.scores.map((value, index) => index === team ? value + points : value)
+      return { ...current, turn: advance ? turn + 1 : turn, scored: !advance, scores }
     })
   }
 
@@ -74,6 +75,7 @@ export default function Relay({ classroom, students, back, openQuestions, onMatc
     const winningScore = Math.max(...match.scores)
     const winners = match.teams.filter((_, i) => match.scores[i] === winningScore).map((entry) => entry.name)
     const question = match.questions[match.turn % match.questions.length]
+    const canGrade = canGradeQuestion(question)
     return <section className="relay-stage" aria-label="Màn thi đấu tiếp sức">
       <header className="relay-header"><div><h1>Tiếp sức đấu đội</h1><p>{classroom.name}</p></div>
         {!finished && <button className="button play-button" onClick={() => setQuitting(true)}>Dừng trận</button>}
@@ -92,7 +94,11 @@ export default function Relay({ classroom, students, back, openQuestions, onMatc
       </article> : null}
       {!finished && <div className="relay-question-wrap" hidden={quitting}>
         <QuestionCard key={match.turn} question={question} turn={match.turn + 1} person={member.fullName}
-          detail={team.name + ' · Vòng ' + (round + 1) + '/' + match.rounds} actions={<>
+          detail={team.name + ' · Vòng ' + (round + 1) + '/' + match.rounds}
+          onConfirm={(correct) => score(correct ? 1 : 0, false)}
+          actions={canGrade ? <button className={'button ' + (match.scored ? 'primary' : 'secondary')} onClick={() => score(0)}>
+            Tiếp tục
+          </button> : <>
           <button className="button secondary" onClick={() => score(0)}>Sai / Bỏ qua</button>
           <button className="button primary" onClick={() => score(1)}>Đúng · +1 điểm</button>
         </>}/>

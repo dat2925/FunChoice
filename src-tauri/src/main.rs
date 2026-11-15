@@ -1,8 +1,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod db;
+mod escape_room;
+mod exams;
 mod license;
 mod payments;
+mod question_images;
 mod selection;
 
 use db::{Classroom, Result, School, Session, Settings, Student, StudentInput};
@@ -346,6 +349,14 @@ fn main() {
             pending_game,
             class_question_plan,
             save_class_question_plan,
+            question_images::append_word_questions,
+            question_images::question_image,
+            exams::list_exams,
+            exams::save_exam,
+            exams::delete_exam,
+            escape_room::escape_start,
+            escape_room::escape_list,
+            escape_room::escape_action,
             start_game,
             draw_meteor,
             reveal,

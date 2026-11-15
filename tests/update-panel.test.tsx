@@ -66,6 +66,21 @@ it('remembers dismissal across app launches and announces a newer version', asyn
   expect(await screen.findByText('Phiên bản 1.2.23 đã sẵn sàng.')).toBeTruthy()
 })
 
+it('shows the version-specific changes as a list in the update dialog', async () => {
+  vi.mocked(check).mockResolvedValue(Object.assign(update('1.2.24'), {
+    body: '- Thông báo khi có bản mới.\n- Cập nhật ngay hoặc để sau.',
+  }))
+  render(<TestApp/>)
+  const button = await screen.findByRole('button', { name: 'Có bản 1.2.24' })
+  const dialog = document.querySelector('dialog')!
+  dialog.showModal = () => { dialog.open = true }
+  fireEvent.click(button)
+  const notes = within(screen.getByRole('region', { name: 'Có gì mới' }))
+  expect(notes.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+    'Thông báo khi có bản mới.', 'Cập nhật ngay hoặc để sau.',
+  ])
+})
+
 it('announces an update detected during play and installs from the notice after play ends', async () => {
   vi.useFakeTimers()
   const downloadAndInstall = vi.fn(async () => { throw new Error('test installation failure') })

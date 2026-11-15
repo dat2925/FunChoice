@@ -37,9 +37,14 @@ export const defaults: Settings = {
 export interface Question {
   id: string; text: string; answer: string | null
   options?: string[]; correctOptions?: number[]
+  imageIds?: string[]
+}
+export interface ImportedQuestion {
+  text: string; answer: string | null; options: string[]; correctOptions: number[]; images: number[]
 }
 export const optionLetters = 'ABCDEFGH'
 export interface QuestionPlan { bank: Question[]; turns: (string | null)[] }
+export interface Exam { id: string; title: string; questions: Question[]; updatedAt: string }
 export interface Pick {
   studentId: string; fullName: string; studentCode: string | null; selectionOrder: number; selectedAt: string | null
 }
@@ -59,6 +64,13 @@ export const api = {
   students: (classroomId: string) => invoke<Student[]>('list_students', { classroomId }),
   questionPlan: (classroomId: string) => invoke<QuestionPlan>('class_question_plan', { classroomId }),
   saveQuestionPlan: (classroomId: string, plan: QuestionPlan) => invoke<void>('save_class_question_plan', { classroomId, plan }),
+  appendWordQuestions: (classroomId: string, questions: ImportedQuestion[], images: string[]) =>
+    invoke<QuestionPlan>('append_word_questions', { classroomId, questions, images }),
+  questionImage: (id: string) => invoke<ArrayBuffer>('question_image', { id }),
+  exams: (classroomId: string) => invoke<Exam[]>('list_exams', { classroomId }),
+  saveExam: (classroomId: string, title: string, questionIds: string[], id?: string) =>
+    invoke<Exam>('save_exam', { classroomId, title, questionIds, id }),
+  deleteExam: (classroomId: string, id: string) => invoke<void>('delete_exam', { classroomId, id }),
   saveSchool: (name: string, theme: SchoolTheme, id?: string) => invoke<string>('save_school', { name, theme, id }),
   saveClassroom: (schoolId: string, name: string, id?: string) => invoke<string>('save_classroom', { schoolId, name, id }),
   saveStudent: (classroomId: string, student: StudentInput, id?: string) =>

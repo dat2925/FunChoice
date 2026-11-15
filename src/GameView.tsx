@@ -154,7 +154,7 @@ export default function GameView({ initial, students, audio, mp3, paused, finish
       {questionTurn && question && <QuestionCard key={questionTurn.order} className="meteor-question" question={question}
         turn={questionTurn.order} person={students.find((student) => student.id === questionTurn.studentId)?.fullName}
         actions={<button className="button primary" onClick={() => { questionTurn.advance(); setQuestionTurn(undefined) }}>
-          {questionTurn.order === initial.targetCount ? 'Xem kết quả' : 'Tiếp tục'}<ArrowRight size={17} aria-hidden="true"/>
+          {questionTurn.order === initial.targetCount && !question.options?.length ? 'Xem kết quả' : 'Tiếp tục'}<ArrowRight size={17} aria-hidden="true"/>
         </button>}
       />}
       {presenting && <button className="button exit-presentation" onClick={() => void presentation(false)} aria-label="Thoát toàn màn hình"><X size={16}/> Esc</button>}

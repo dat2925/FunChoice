@@ -15,11 +15,11 @@ const APPLICATION_ID: i64 = 1397705812;
 fn id() -> String {
     Uuid::new_v4().to_string()
 }
-fn storage(error: rusqlite::Error) -> String {
+pub(crate) fn storage(error: rusqlite::Error) -> String {
     eprintln!("SQLite: {error}");
     "Không thể truy cập dữ liệu SQLite. Hãy kiểm tra tệp và quyền truy cập.".into()
 }
-fn collect<T>(
+pub(crate) fn collect<T>(
     db: &Connection,
     sql: &str,
     args: impl rusqlite::Params,
@@ -29,7 +29,7 @@ fn collect<T>(
     let rows = query.query_map(args, read).map_err(storage)?;
     rows.collect::<Sql<Vec<_>>>().map_err(storage)
 }
-fn clean(value: &str, max: usize) -> Result<String> {
+pub(crate) fn clean(value: &str, max: usize) -> Result<String> {
     let value = value.split_whitespace().collect::<Vec<_>>().join(" ");
     if value.is_empty() || value.chars().count() > max || value.chars().any(char::is_control) {
         return Err(format!("Vui lòng nhập từ 1 đến {max} ký tự hợp lệ."));
@@ -104,18 +104,20 @@ pub struct Settings {
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Question {
-    id: String,
-    text: String,
-    answer: Option<String>,
+    pub(crate) id: String,
+    pub(crate) text: String,
+    pub(crate) answer: Option<String>,
     #[serde(default)]
-    options: Vec<String>,
+    pub(crate) options: Vec<String>,
     #[serde(default)]
-    correct_options: Vec<usize>,
+    pub(crate) correct_options: Vec<usize>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) image_ids: Vec<String>,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct QuestionPlan {
-    bank: Vec<Question>,
+    pub(crate) bank: Vec<Question>,
     turns: Vec<Option<String>>,
 }
 #[derive(Deserialize, Serialize, Clone, Copy, Default)]
@@ -235,7 +237,7 @@ fn migrate(db: &Connection) -> Result<()> {
     let version: i64 = db
         .query_row("PRAGMA user_version", [], |r| r.get(0))
         .map_err(storage)?;
-    if !(0..=4).contains(&version) {
+    if !(0..=7).contains(&version) {
         return Err("Phiên bản dữ liệu không tương thích.".into());
     }
     if version == 0 {
@@ -252,6 +254,18 @@ fn migrate(db: &Connection) -> Result<()> {
     }
     if version < 4 {
         db.execute_batch(include_str!("../migrations/004_class_questions.sql"))
+            .map_err(storage)?;
+    }
+    if version < 5 {
+        db.execute_batch(include_str!("../migrations/005_escape_room.sql"))
+            .map_err(storage)?;
+    }
+    if version < 6 {
+        db.execute_batch(include_str!("../migrations/006_exams.sql"))
+            .map_err(storage)?;
+    }
+    if version < 7 {
+        db.execute_batch(include_str!("../migrations/007_question_images.sql"))
             .map_err(storage)?;
     }
     Ok(())
@@ -601,8 +615,15 @@ pub fn question_plan(db: &Connection, class: &str) -> Result<QuestionPlan> {
     serde_json::from_str(&json).map_err(|_| "Không thể đọc danh sách câu hỏi.".into())
 }
 
-pub fn save_question_plan(db: &mut Connection, class: &str, mut plan: QuestionPlan) -> Result<()> {
+fn write_question_plan(
+    db: &Connection,
+    class: &str,
+    mut plan: QuestionPlan,
+) -> Result<QuestionPlan> {
     let mut ids = HashSet::new();
+    let mut image_exists = db
+        .prepare_cached("SELECT 1 FROM question_images WHERE id=?1")
+        .map_err(storage)?;
     for question in &mut plan.bank {
         question.text = question.text.trim().to_owned();
         question.answer = question
@@ -639,6 +660,14 @@ pub fn save_question_plan(db: &mut Connection, class: &str, mut plan: QuestionPl
         }
         question.correct_options.sort_unstable();
         question.correct_options.dedup();
+        if question.image_ids.len() > 300 {
+            return Err("Mỗi câu hỏi được phép đính kèm tối đa 300 ảnh.".into());
+        }
+        for id in &question.image_ids {
+            if id.len() != 64 || !image_exists.exists([id]).map_err(storage)? {
+                return Err("Không tìm thấy ảnh đính kèm của câu hỏi.".into());
+            }
+        }
     }
     if plan
         .turns
@@ -649,19 +678,65 @@ pub fn save_question_plan(db: &mut Connection, class: &str, mut plan: QuestionPl
         return Err("Có lượt được gán câu hỏi không còn trong danh sách.".into());
     }
     let json = serde_json::to_string(&plan).map_err(|_| "Không thể lưu câu hỏi.")?;
-    let tx = db
-        .transaction_with_behavior(TransactionBehavior::Immediate)
-        .map_err(storage)?;
-    unlocked(&tx)?;
     changed(
-        tx.execute(
+        db.execute(
             "UPDATE classrooms SET question_plan=?2 WHERE id=?1 AND deleted=0
          AND EXISTS (SELECT 1 FROM schools s WHERE s.id=classrooms.school_id AND s.deleted=0)",
             params![class, json],
         )
         .map_err(storage)?,
     )?;
+    Ok(plan)
+}
+
+pub fn save_question_plan(db: &mut Connection, class: &str, plan: QuestionPlan) -> Result<()> {
+    let tx = db
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(storage)?;
+    unlocked(&tx)?;
+    write_question_plan(&tx, class, plan)?;
     tx.commit().map_err(storage)
+}
+
+pub(crate) fn append_word_questions(
+    db: &mut Connection,
+    class: &str,
+    input: Vec<crate::question_images::ImportedQuestion>,
+    images: Vec<String>,
+) -> Result<QuestionPlan> {
+    let tx = db
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(storage)?;
+    unlocked(&tx)?;
+    let mut plan = question_plan(&tx, class)?;
+    if input.is_empty() || input.len() > 500 {
+        return Err("Hãy nhập từ 1 đến 500 câu hỏi mỗi lần.".into());
+    }
+    let used: HashSet<_> = input
+        .iter()
+        .flat_map(|item| item.images.iter().copied())
+        .collect();
+    if used.len() != images.len() || used.iter().any(|&index| index >= images.len()) {
+        return Err("Danh sách ảnh đính kèm không hợp lệ.".into());
+    }
+    let stored = crate::question_images::store(&tx, images)?;
+    for item in input {
+        plan.bank.push(Question {
+            id: Uuid::new_v4().to_string(),
+            text: item.text,
+            answer: item.answer,
+            options: item.options,
+            correct_options: item.correct_options,
+            image_ids: item
+                .images
+                .into_iter()
+                .map(|index| stored[index].clone())
+                .collect(),
+        });
+    }
+    let updated = write_question_plan(&tx, class, plan)?;
+    tx.commit().map_err(storage)?;
+    Ok(updated)
 }
 
 fn questions_for_game(
@@ -895,7 +970,7 @@ fn validate_backup(db: &Connection) -> Result<()> {
     let schema: i64 = db.query_row("SELECT COUNT(*) FROM sqlite_schema WHERE type='table' AND
         name IN ('schools','classrooms','students','game_sessions','selection_results','cycle_members')", [], |r| r.get(0)).map_err(storage)?;
     if app != APPLICATION_ID
-        || !(1..=4).contains(&version)
+        || !(1..=7).contains(&version)
         || integrity != "ok"
         || foreign_error
         || schema != 6
@@ -927,10 +1002,15 @@ pub fn restore(db: &mut Connection, source: &Path, pro: bool) -> Result<()> {
     validate_backup(&staged)?;
     let migration = staged.transaction().map_err(storage)?;
     migrate(&migration)?;
+    migration
+        .prepare("SELECT id,bytes FROM question_images LIMIT 0")
+        .map_err(storage)?;
     migration.commit().map_err(storage)?;
     schools(&staged)?;
     pending(&staged)?;
     history(&staged)?;
+    crate::escape_room::list(&staged, None)?;
+    crate::exams::list(&staged, None)?;
     if !pro {
         let over_limit: bool = staged.query_row(
             "SELECT (SELECT COUNT(*) FROM classrooms WHERE deleted=0) > ?1
@@ -989,6 +1069,75 @@ mod tests {
     }
 
     #[test]
+    fn word_import_migrates_legacy_backup_and_keeps_images_in_new_backup() {
+        use crate::question_images::ImportedQuestion;
+        const PNG: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X12sAAAAASUVORK5CYII=";
+        let folder = tempfile::tempdir().unwrap();
+        let original = folder.path().join("original.sqlite");
+        let mut db = open(&original).unwrap();
+        let (_, class, _) = sample(&mut db);
+        save_question_plan(&mut db, &class, serde_json::from_str(
+            r#"{"bank":[{"id":"old","text":"Câu đã có","answer":"Đáp án cũ"}],"turns":["old"]}"#
+        ).unwrap()).unwrap();
+        db.execute_batch("DROP TABLE question_images; PRAGMA user_version=6;")
+            .unwrap();
+        let legacy = folder.path().join("legacy.sqlite");
+        backup(&db, &legacy).unwrap();
+        let mut db = open(&folder.path().join("destination.sqlite")).unwrap();
+        restore(&mut db, &legacy, false).unwrap();
+
+        let question = |text: &str| ImportedQuestion {
+            text: text.to_owned(),
+            answer: None,
+            options: vec!["Một".into(), "Hai".into()],
+            correct_options: vec![1],
+            images: vec![0],
+        };
+        assert!(
+            append_word_questions(&mut db, &class, vec![question("")], vec![PNG.into()]).is_err()
+        );
+        assert_eq!(
+            db.query_row("SELECT COUNT(*) FROM question_images", [], |row| row
+                .get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
+        let plan = append_word_questions(
+            &mut db,
+            &class,
+            vec![
+                question("Một cộng một bằng bao nhiêu?"),
+                question("Hình minh họa có mấy phần?"),
+            ],
+            vec![PNG.into()],
+        )
+        .unwrap();
+        assert_eq!(plan.bank.len(), 3);
+        assert_eq!(plan.turns[0].as_deref(), Some("old"));
+        assert_eq!(plan.bank[0].answer.as_deref(), Some("Đáp án cũ"));
+        assert!(plan.bank[0].image_ids.is_empty());
+        let id = &plan.bank[1].image_ids[0];
+        assert_eq!(plan.bank[2].image_ids, [id.clone()]);
+        let image = crate::question_images::read(&db, id).unwrap();
+        assert!(image.starts_with(b"\x89PNG\r\n\x1a\n"));
+
+        let backup_file = folder.path().join("with-images.sqlite");
+        backup(&db, &backup_file).unwrap();
+        let mut restored = open(&folder.path().join("restored.sqlite")).unwrap();
+        restore(&mut restored, &backup_file, false).unwrap();
+        let mut reloaded = question_plan(&restored, &class).unwrap();
+        assert_eq!(&reloaded.bank[1].image_ids[0], id);
+        assert_eq!(crate::question_images::read(&restored, id).unwrap(), image);
+
+        reloaded.turns[0] = Some(reloaded.bank[1].id.clone());
+        save_question_plan(&mut restored, &class, reloaded).unwrap();
+        let mut config = settings(1, "random");
+        config.with_questions = true;
+        let game = start(&mut restored, &class, config).unwrap();
+        assert_eq!(game.settings.questions[0].image_ids, [id.clone()]);
+    }
+
+    #[test]
     fn question_schedule_and_repeated_student_survive_resume() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("test.sqlite");
@@ -1011,6 +1160,7 @@ mod tests {
                         answer: Some("5".into()),
                         options: Vec::new(),
                         correct_options: Vec::new(),
+                        image_ids: Vec::new(),
                     },
                     Question {
                         id: "b".into(),
@@ -1018,6 +1168,7 @@ mod tests {
                         answer: None,
                         options: Vec::new(),
                         correct_options: Vec::new(),
+                        image_ids: Vec::new(),
                     },
                 ],
                 turns: vec![Some("a".into()), None],

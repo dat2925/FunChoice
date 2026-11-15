@@ -6,7 +6,7 @@
 
 1. Tải bộ cài Windows x64 từ [trang FunChoice](https://dat2925.github.io/FunChoice/), chạy tệp rồi mở ứng dụng từ menu Start.
 2. Thêm trường và lớp. Trong lớp, thêm từng học sinh hoặc chọn **Nhập Excel / CSV**.
-3. Mở **Cấu hình trò chơi** và chọn **Thiên thạch** hoặc **Tiếp sức đấu đội**. Với Thiên thạch, chọn số học sinh, chế độ và hiệu ứng, rồi chọn **Bắt đầu trò chơi**. Dùng **Toàn màn hình** để sân chơi phủ kín màn hình. Nhấn **Esc** để hiện lại các nút điều khiển.
+3. Mở **Cấu hình trò chơi** và chọn **Thiên thạch**, **Tiếp sức đấu đội** hoặc **Căn phòng bí ẩn**. Với Thiên thạch, chọn số học sinh, chế độ và hiệu ứng, rồi chọn **Bắt đầu trò chơi**. Dùng **Toàn màn hình** để sân chơi phủ kín màn hình. Nhấn **Esc** để hiện lại các nút điều khiển.
 4. Sau lượt chơi, sao chép hoặc xuất kết quả CSV. Mục **Lịch sử chọn** lưu thứ tự công bố, thời gian, chế độ, trường và lớp.
 5. Nếu đóng ứng dụng giữa lượt, chọn **Tiếp tục lượt** khi mở lại. Nút **Kết thúc** lưu các kết quả đã công bố và đóng lượt.
 
@@ -28,6 +28,8 @@ Bật **Cho phép chọn lại học sinh** để cùng một học sinh có th�
 
 Chọn loại **Trắc nghiệm** để tạo từ 2 đến 8 phương án và đánh dấu các phương án đúng. Với Excel hoặc CSV, dùng các cột **A** đến **H** và ghi ký tự đáp án đúng trong cột **Đáp án đúng**, ví dụ `A C`.
 
+Để nhập Word, vào **Chuẩn bị câu hỏi → Nhập từ Word** và chọn tệp `.docx`. Xem trước câu hỏi, phương án, đáp án và ảnh đính kèm trước khi lưu. Trong Thiên thạch và Tiếp sức đấu đội, bấm **Xem kết quả** để chấm câu trắc nghiệm rồi **Tiếp tục** để sang lượt sau.
+
 ## Sao lưu
 
 Mở **Sao lưu dữ liệu** để tạo tệp `.sqlite`. Thao tác khôi phục thay thế dữ liệu hiện tại sau khi xác nhận. Ứng dụng lưu dữ liệu tại `%LOCALAPPDATA%\vn.solotech.meteor\classroom.sqlite`. Khi xóa trường, lớp hoặc học sinh, thông tin đã công bố vẫn xuất hiện trong lịch sử.
@@ -38,7 +40,7 @@ Từ phiên bản 1.2.21, FunChoice kiểm tra bản mới khi mở ứng dụng
 
 ### Phát hành bản cập nhật
 
-Tăng phiên bản trong `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` và các tệp npm. Chạy `npm run release:windows`, rồi tải đồng thời bộ cài `FunChoice-<version>-x64-setup.exe`, tệp `.exe.sig` và `latest.json` từ thư mục `release` lên GitHub Release có tag `v<version>`. Đặt bản đó làm **Latest**. Ứng dụng đọc [manifest cập nhật](https://github.com/dat2925/FunChoice/releases/latest/download/latest.json).
+Tăng phiên bản trong `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` và các tệp npm. Ghi các thay đổi người dùng cần biết vào `release-notes/<version>.md`, mỗi thay đổi một dòng bắt đầu bằng `- `. Chạy `npm run release:windows`, rồi tải đồng thời bộ cài `FunChoice-<version>-x64-setup.exe`, tệp `.exe.sig` và `latest.json` từ thư mục `release` lên GitHub Release có tag `v<version>`. Đặt bản đó làm **Latest**. Cửa sổ cập nhật lấy mục **Có gì mới** từ [manifest cập nhật](https://github.com/dat2925/FunChoice/releases/latest/download/latest.json).
 
 Máy phát hành dùng khóa ký gốc tại `%LOCALAPPDATA%\FunChoiceRelease\updater.key` hoặc đường dẫn trong `TAURI_SIGNING_PRIVATE_KEY`. Giữ bản sao khóa này ngoài GitHub để các phiên bản đã cài tiếp tục xác minh được bản mới.
 
@@ -64,6 +66,10 @@ Bài Playwright mở ứng dụng Windows thật và dùng thư mục SQLite ri�
 ## Tiếp sức đấu đội
 
 Trong **Chuẩn bị câu hỏi**, chọn **Tải Excel mẫu**, sau đó nhập tệp hoặc chỉnh nội dung trước khi nhập. Chọn từ 2 đến 6 đội, đặt tên, chọn số vòng và chia học sinh thủ công hoặc chia đều ngẫu nhiên. Mỗi lượt tự hiện một câu từ ngân hàng của lớp. Giáo viên có thể bấm **Hiện đáp án**, sau đó bấm **Đúng · +1 điểm** hoặc **Sai / Bỏ qua** để chấm và chuyển lượt. Bảng tổng kết hiện đội thắng hoặc các đội đồng hạng. Điểm tiếp sức được giữ trong trận đang mở.
+
+## Căn phòng bí ẩn
+
+Trong chương **Bí mật phòng học cũ**, cả lớp trả lời câu hỏi và khám phá các đồ vật để thu thập manh mối. Dùng manh mối để mở két, lấy chìa khóa và thoát khỏi căn phòng. Giáo viên có thể chọn câu hỏi của lớp, đặt thời lượng và bật gợi ý. Tiến độ được lưu để có thể tạm dừng và tiếp tục sau.
 
 ## Miễn phí và Pro
 

@@ -1,6 +1,6 @@
 {
   "name": "funchoice",
-  "version": "1.2.24",
+  "version": "1.2.25",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -22,6 +22,7 @@
     "@tauri-apps/api": "^2.12.4",
     "@tauri-apps/plugin-dialog": "^2.8.4",
     "@tauri-apps/plugin-updater": "^2.14.1",
+    "fflate": "^0.8.3",
     "lucide-react": "^1.72.0",
     "papaparse": "^5.7.1",
     "phaser": "^3.90.0",

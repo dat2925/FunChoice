@@ -100,6 +100,9 @@ export default function UpdatePanel({ blocked, slot }: { blocked: boolean; slot:
   }
 
   if (!isTauri()) return null
+  const releaseNotes = available?.body?.trim()
+  const noteLines = releaseNotes?.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+  const bulletNotes = noteLines?.every((line) => /^[-*] +\S/.test(line)) ? noteLines : undefined
   return <>
     {slot && createPortal(<div className="update-panel">
       {version && <span>v{version}</span>}
@@ -127,7 +130,11 @@ export default function UpdatePanel({ blocked, slot }: { blocked: boolean; slot:
     <dialog className="update-dialog panel" ref={dialog} aria-labelledby="update-title"
       onCancel={(event) => { if (installing) event.preventDefault() }}>
       <h2 id="update-title">{available ? 'FunChoice ' + available.version : 'Cập nhật FunChoice'}</h2>
-      {available?.body && <p className="update-notes">{available.body}</p>}
+      {releaseNotes && <section className="update-notes" aria-labelledby="update-notes-title">
+        <h3 id="update-notes-title">Có gì mới</h3>
+        {bulletNotes ? <ul>{bulletNotes.map((line, index) => <li key={index}>{line.replace(/^[-*] +/, '')}</li>)}</ul>
+          : <p>{releaseNotes}</p>}
+      </section>}
       {blocked && available && !installing && <p className="hint">Hãy hoàn tất lượt chơi hoặc thao tác đang mở trước khi cập nhật.</p>}
       {checking && <p className="muted" role="status">Đang kiểm tra bản cập nhật…</p>}
       {message && <p className="muted" role="status">{message}{percent !== undefined ? ' ' + percent + '%' : ''}</p>}

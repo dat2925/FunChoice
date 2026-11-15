@@ -1,4 +1,4 @@
-import { ArrowRight, ChevronDown, ChevronRight, CircleHelp, Database, GraduationCap, History, Plus, School as SchoolIcon, Sparkles, Users } from 'lucide-react'
+import { ArrowRight, ChevronDown, ChevronRight, CircleHelp, ClipboardList, Database, GraduationCap, History, Plus, School as SchoolIcon, Sparkles, Users } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { Classroom, School } from './api'
 import type { Page } from './store'
@@ -48,15 +48,15 @@ export function Hero({ title, description, button, onAction }: { title: ReactNod
 
 const labels: Record<Page, string> = {
   schools: 'Trường học', classrooms: 'Lớp học', students: 'Học sinh',
-  questions: 'Chuẩn bị câu hỏi', games: 'Chọn trò chơi', setup: 'Thiên thạch', relay: 'Tiếp sức đấu đội',
-  history: 'Lịch sử chọn', backup: 'Sao lưu dữ liệu',
+  questions: 'Chuẩn bị câu hỏi', games: 'Chọn trò chơi', setup: 'Thiên thạch', relay: 'Tiếp sức đấu đội', escape: 'Căn phòng bí ẩn',
+  exams: 'Đề thi và câu hỏi', history: 'Lịch sử chọn', backup: 'Sao lưu dữ liệu',
 }
 export function Shell({ page, school, classroom, navigate, help, proStatus, upgrade, purchase, updateSlot, children }: {
   page: Page; school: School | null; classroom: Classroom | null
   navigate: (page: Page) => void; help: () => void; proStatus?: string; upgrade: () => void; purchase?: () => void
   updateSlot: (node: HTMLDivElement | null) => void; children: ReactNode
 }) {
-  const schoolArea = ['schools', 'classrooms', 'students', 'questions', 'games', 'setup', 'relay'].includes(page)
+  const schoolArea = ['schools', 'classrooms', 'students', 'questions', 'games', 'setup', 'relay', 'escape'].includes(page)
   return <div className="shell">
     <aside className="sidebar">
       <button className="brand" onClick={() => navigate('schools')} aria-label="FunChoice, về trang trường học">
@@ -66,6 +66,7 @@ export function Shell({ page, school, classroom, navigate, help, proStatus, upgr
         <div className="nav-label">QUẢN LÝ</div>
         <nav aria-label="Điều hướng chính">
           <button className={schoolArea ? 'nav-item current' : 'nav-item'} onClick={() => navigate('schools')} aria-current={schoolArea ? 'page' : undefined}><SchoolIcon size={19}/> Trường học</button>
+          <button className={page === 'exams' ? 'nav-item current' : 'nav-item'} onClick={() => navigate('exams')} aria-current={page === 'exams' ? 'page' : undefined}><ClipboardList size={19}/> Đề thi và câu hỏi</button>
           <button className={page === 'history' ? 'nav-item current' : 'nav-item'} onClick={() => navigate('history')} aria-current={page === 'history' ? 'page' : undefined}><History size={19}/> Lịch sử chọn</button>
         </nav>
         <div className="nav-label second">HỆ THỐNG</div>
