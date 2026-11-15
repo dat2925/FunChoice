@@ -3,44 +3,116 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="FunChoice là trò chơi chọn học sinh cho lớp học. Tải bộ cài miễn phí cho Windows 10 và 11.">
-  <title>FunChoice — Trò chơi gọi tên cho lớp học</title>
+  <meta name="description" content="FunChoice của SoloTech biến lượt gọi tên thành trò chơi lớp học. Chơi Thiên thạch, Tiếp sức đấu đội và trình chiếu câu hỏi trên Windows.">
+  <meta name="theme-color" content="#171334">
+  <link rel="icon" href="solotech-logo.png" type="image/png">
   <link rel="stylesheet" href="style.css">
   <script src="release.js" defer></script>
+  <title>FunChoice của SoloTech | Trò chơi cho lớp học</title>
 </head>
 <body>
-  <header class="topbar wrap">
-    <a class="brand" href="./">Fun<span>Choice</span><small>SOLOTECH</small></a>
-    <a class="nav-link" href="#cai-dat">Cách cài đặt</a>
+  <a class="skip" href="#noi-dung">Đến nội dung</a>
+  <header class="top">
+    <div class="wrap topbar">
+      <a class="brand" href="./" aria-label="SoloTech · Trang chủ FunChoice"><img src="solotech-logo.png" width="440" height="283" alt="SoloTech"><span>FunChoice</span></a>
+      <nav aria-label="Điều hướng chính">
+        <a href="#tro-choi">Trò chơi</a>
+        <a href="#tinh-nang">Tính năng</a>
+        <a href="#solotech">SoloTech</a>
+      </nav>
+      <a class="nav-download" href="#cai-dat">Tải cho Windows <span aria-hidden="true">↓</span></a>
+    </div>
   </header>
-  <main>
-    <section class="hero wrap">
-      <div class="intro">
-        <p class="eyebrow">TRÒ CHƠI CHO LỚP HỌC</p>
-        <h1>Đến lượt <em>ai?</em></h1>
-        <p class="lede">Một viên thiên thạch chọn học sinh. Một câu hỏi hiện lên để cả lớp cùng suy nghĩ.</p>
-        <a class="download" data-download href="https://github.com/dat2925/FunChoice/releases">Xem trang tải trên GitHub <span aria-hidden="true">↗</span></a>
-        <p class="platform">Windows 10/11 · 64-bit <span data-version></span></p>
-        <p class="platform" data-download-status aria-live="polite"></p>
+
+  <main id="noi-dung">
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div class="intro">
+          <p class="overline">FunChoice của SoloTech</p>
+          <h1>Đến lượt <em>ai?</em><br>Vào chơi thôi.</h1>
+          <p class="lede">Biến giờ gọi tên và ôn bài thành một trò chơi. Để thiên thạch tìm người trả lời hoặc chia lớp thành các đội thi tiếp sức.</p>
+          <div class="hero-actions">
+            <a class="download" data-download href="https://github.com/dat2925/FunChoice/releases/latest">Tải FunChoice <span aria-hidden="true">↓</span></a>
+            <a class="plain-link" href="#tro-choi">Khám phá trò chơi <span aria-hidden="true">↗</span></a>
+          </div>
+          <p class="platform">Windows 10/11 · 64-bit <span data-version></span></p>
+          <p class="platform" data-download-status aria-live="polite"></p>
+        </div>
+        <figure class="preview">
+          <div class="window"><span></span><span></span><span></span><small>FunChoice · Thiên thạch</small></div>
+          <img src="funchoice.webp" width="1440" height="844" alt="FunChoice phóng to nhân vật Minh An trên sân trường và hiển thị các phương án trắc nghiệm">
+          <figcaption>Thiên thạch chọn học sinh, rồi câu hỏi hiện ngay trên sân trường.</figcaption>
+        </figure>
       </div>
-      <figure class="preview">
-        <div class="window"><span></span><span></span><span></span> <small>FunChoice · SoloTech</small></div>
-        <img src="funchoice.webp" width="1440" height="844" alt="Một câu trắc nghiệm đang hiện trên sân trường sau khi FunChoice chọn Minh An">
+    </section>
+
+    <section id="tro-choi" class="wrap games section-space">
+      <h2>Hai cách để cả lớp cùng chơi</h2>
+      <div class="games-grid">
+        <article class="game-card meteor">
+          <p class="overline">Gọi tên ngẫu nhiên</p>
+          <h3>Thiên thạch</h3>
+          <p>Cả lớp chạy trong sân trường chibi. Khi thiên thạch chọn được một học sinh, bạn có thể gọi tên ngay hoặc phóng to nhân vật để hiện câu hỏi.</p>
+          <ul><li>Rơi thẳng, đổi hướng hoặc hỗn hợp</li><li>Tùy chọn cho phép chọn lại học sinh</li><li>Trình chiếu toàn màn hình</li></ul>
+        </article>
+        <article class="game-card relay">
+          <p class="overline">Ôn bài theo nhóm</p>
+          <h3>Tiếp sức đấu đội</h3>
+          <p>Chia lớp thành 2–6 đội. Mỗi vòng, các đội lần lượt cử thành viên trả lời câu hỏi. Giáo viên chấm điểm và FunChoice công bố đội thắng cuối trận.</p>
+          <ul><li>Chia đội thủ công hoặc ngẫu nhiên</li><li>Câu hỏi tự hiện theo từng lượt</li><li>Bảng điểm xuyên suốt trận đấu</li></ul>
+        </article>
+      </div>
+      <figure class="relay-preview">
+        <img src="tiep-suc.webp" width="1440" height="844" loading="lazy" alt="Màn hình Tiếp sức đấu đội với bảng điểm, câu hỏi và nút chấm điểm">
+        <figcaption>Màn hình thi đấu có tên thành viên, câu hỏi và điểm của từng đội.</figcaption>
       </figure>
     </section>
+
+    <section id="tinh-nang" class="features section-space">
+      <div class="wrap">
+        <h2>Chuẩn bị một lần, dùng cho nhiều tiết</h2>
+        <div class="features-grid">
+          <article><h3>Ngân hàng câu hỏi</h3><p>Nhập Excel hoặc CSV. Soạn câu tự luận và trắc nghiệm 2–8 phương án, có thể đánh dấu nhiều đáp án đúng. Gán câu hoặc chọn ngẫu nhiên theo lượt trong Thiên thạch.</p></article>
+          <article><h3>Quản lý lớp học</h3><p>Tạo trường và lớp, nhập danh sách học sinh từ Excel. Xem lịch sử gọi tên, xuất kết quả và sao lưu dữ liệu ngay trên máy.</p></article>
+          <article><h3>Sân trường của bạn</h3><p>Chọn bối cảnh nông thôn, thành phố hoặc miền núi cho từng trường. Tên trường của bạn hiện trên bảng trong sân chơi.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="solotech" class="wrap section-space">
+      <div class="studio">
+        <div class="studio-logo"><img src="solotech-logo.png" width="440" height="283" loading="lazy" alt="Logo SoloTech"></div>
+        <div class="studio-copy">
+          <p class="overline">Sản phẩm của SoloTech</p>
+          <h2>SoloTech đứng sau FunChoice.</h2>
+          <p>Từ danh sách lớp đến câu hỏi trên màn chiếu, SoloTech làm FunChoice để giáo viên chuẩn bị và tổ chức trò chơi trong cùng một ứng dụng.</p>
+          <p>Cần hỗ trợ cài đặt hoặc key FunChoice Pro? Liên hệ trực tiếp với SoloTech.</p>
+          <div class="studio-actions">
+            <a class="nav-download" href="https://zalo.me/0944228546">Zalo 0944 228 546 <span aria-hidden="true">↗</span></a>
+            <a class="plain-link" href="mailto:solotechvn.official@gmail.com">Gửi email cho SoloTech <span aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section id="cai-dat" class="installation">
       <div class="wrap steps-wrap">
-        <h2>Cài đặt FunChoice</h2>
+        <div class="install-intro">
+          <h2>Cài FunChoice cho Windows</h2>
+          <a class="download" data-download href="https://github.com/dat2925/FunChoice/releases/latest">Tải bộ cài Windows <span aria-hidden="true">↓</span></a>
+          <p class="platform">Windows 10/11 · 64-bit <span data-version></span></p>
+        </div>
         <ol>
-          <li><strong>Tải bộ cài</strong><p>Dùng nút ở trên để tải tệp cài đặt cho Windows khi có bản phát hành.</p></li>
-          <li><strong>Mở tệp vừa tải</strong><p>Chạy tệp có đuôi <code>.exe</code> và làm theo hướng dẫn cài đặt.</p></li>
-          <li><strong>Bắt đầu với lớp của bạn</strong><p>Mở FunChoice từ menu Start, tạo lớp và thêm danh sách học sinh.</p></li>
+          <li><strong>Tải bộ cài</strong><p>Dùng nút tải để lấy tệp cài đặt mới nhất.</p></li>
+          <li><strong>Chạy tệp .exe</strong><p>Mở tệp vừa tải và làm theo hướng dẫn.</p></li>
+          <li><strong>Mở FunChoice</strong><p>Vào menu Start, mở ứng dụng và thêm lớp đầu tiên.</p></li>
         </ol>
       </div>
     </section>
   </main>
+
   <footer class="wrap footer">
-    <span>Sản phẩm của SoloTech</span>
+    <a class="brand" href="./"><img src="solotech-logo.png" width="440" height="283" alt="SoloTech"><span>FunChoice</span></a>
     <a href="https://github.com/dat2925/FunChoice/releases">Lịch sử phiên bản</a>
   </footer>
 </body>
