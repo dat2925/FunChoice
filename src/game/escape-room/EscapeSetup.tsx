@@ -3,10 +3,8 @@ import { useEffect, useState } from 'react'
 import { api, type Classroom, type Question, type School } from '../../api'
 import roomArt from '../../assets/escape-classroom.png'
 import { errorText } from '../../Modal'
-import { chapter, escapeApi, formatTime, isActive, type EscapeConfig, type EscapeSession } from './model'
-
-const defaultConfig: EscapeConfig = { name: 'Bí mật phòng học cũ', limitMinutes: 10, sound: true, hints: true,
-  wrongAnswer: 'retry', deskQuestionId: null, bookQuestionId: null }
+import EscapeRules from './EscapeRules'
+import { chapter, defaultEscapeConfig, escapeApi, formatTime, isActive, type EscapeSession } from './model'
 
 export default function EscapeSetup({ school, classroom, back, open }: {
   school: School; classroom: Classroom; back: () => void
@@ -17,7 +15,7 @@ export default function EscapeSetup({ school, classroom, back, open }: {
   const [schools, setSchools] = useState<School[]>([school])
   const [classes, setClasses] = useState<Classroom[]>([classroom])
   const [bank, setBank] = useState<Question[]>([])
-  const [config, setConfig] = useState(defaultConfig)
+  const [config, setConfig] = useState(defaultEscapeConfig)
   const [pending, setPending] = useState<EscapeSession>()
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -87,17 +85,8 @@ export default function EscapeSetup({ school, classroom, back, open }: {
             resetSelection(); setClass(event.target.value)
           }}>{classes.length ? classes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>) : <option value="">Chưa có lớp</option>}</select></label>
           <label>Tên phiên chơi<input value={config.name} required maxLength={80} onChange={(event) => setConfig({ ...config, name: event.target.value })}/></label>
-          <label>Thời lượng<select value={config.limitMinutes ?? ''} onChange={(event) => setConfig({ ...config, limitMinutes: Number(event.target.value) || null })}>
-            {[5, 10, 15, 20].map((time) => <option key={time} value={time}>{time} phút</option>)}<option value="">Không giới hạn</option>
-          </select></label>
         </div>
-        <div className="toolbar-actions">
-          <label className="switch-row">Âm thanh<input type="checkbox" checked={config.sound} onChange={(event) => setConfig({ ...config, sound: event.target.checked })}/></label>
-          <label className="switch-row">Gợi ý<input type="checkbox" checked={config.hints} onChange={(event) => setConfig({ ...config, hints: event.target.checked })}/></label>
-        </div>
-        <label>Khi trả lời sai<select value={config.wrongAnswer} onChange={(event) => setConfig({ ...config, wrongAnswer: event.target.value === 'timePenalty' ? 'timePenalty' : 'retry' })}>
-          <option value="retry">Cho thử lại</option><option value="timePenalty">Cho thử lại và trừ 15 giây nếu có giới hạn</option>
-        </select></label>
+        <EscapeRules config={config} change={setConfig}/>
         <div className="escape-question-selection">
           <h3><BookOpen size={17}/> Câu hỏi trong phòng</h3>
           {!selectedClass && <p className="muted">Chọn trường có ít nhất một lớp để bắt đầu.</p>}

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { api, defaults, musicTracks, type Classroom, type School, type Settings } from './api'
 
-export type Page = 'schools' | 'classrooms' | 'students' | 'questions' | 'exams' | 'games' | 'setup' | 'relay' | 'escape' | 'history' | 'backup'
+export type Page = 'schools' | 'classrooms' | 'students' | 'questions' | 'exams' | 'games' | 'presets' | 'setup' | 'relay' | 'escape' | 'history' | 'backup'
 
 const musicKey = 'funchoice.background-music'
 

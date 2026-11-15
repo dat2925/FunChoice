@@ -50,6 +50,23 @@ pub(crate) struct Config {
     book_question_id: Option<String>,
 }
 
+impl Config {
+    fn validate(&mut self) -> Result<()> {
+        self.name = db::clean(&self.name, 80)?;
+        if self.limit_minutes.is_some_and(|limit| ![5, 10, 15, 20].contains(&limit)) {
+            return Err("Thời lượng không hợp lệ.".into());
+        }
+        Ok(())
+    }
+
+    pub(crate) fn prepare_preset(&mut self, title: &str) -> Result<()> {
+        self.name = title.into();
+        self.desk_question_id = None;
+        self.book_question_id = None;
+        self.validate()
+    }
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 enum Item {
@@ -320,14 +337,17 @@ pub(crate) fn list(db: &Connection, class: Option<&str>) -> Result<Vec<EscapeSes
     db::collect(db, "SELECT snapshot FROM escape_sessions WHERE (?1 IS NULL OR classroom_id=?1) ORDER BY started_at DESC, rowid DESC", [class], read)
 }
 
-fn start(db: &mut Connection, class: &str, mut config: Config) -> Result<EscapeSession> {
-    config.name = db::clean(&config.name, 80)?;
-    if config
-        .limit_minutes
-        .is_some_and(|limit| ![5, 10, 15, 20].contains(&limit))
-    {
-        return Err("Thời lượng không hợp lệ.".into());
-    }
+fn start(db: &mut Connection, class: &str, config: Config) -> Result<EscapeSession> {
+    start_with_questions(db, class, config, None)
+}
+
+pub(crate) fn start_with_questions(
+    db: &mut Connection,
+    class: &str,
+    mut config: Config,
+    questions: Option<[Question; 2]>,
+) -> Result<EscapeSession> {
+    config.validate()?;
     let tx = db
         .transaction_with_behavior(TransactionBehavior::Immediate)
         .map_err(db::storage)?;
@@ -339,19 +359,18 @@ fn start(db: &mut Connection, class: &str, mut config: Config) -> Result<EscapeS
     if active {
         return Err("Hãy tiếp tục hoặc bỏ phiên đang dở của lớp này.".into());
     }
-    let bank = db::question_plan(&tx, class)?.bank;
-    let question = |id: &Option<String>, index| match id {
-        Some(id) => bank
-            .iter()
-            .find(|query| &query.id == id)
-            .cloned()
-            .ok_or("Câu hỏi không còn trong ngân hàng của lớp."),
-        None => Ok(sample(index)),
+    let questions = match questions {
+        Some(questions) => questions,
+        None => {
+            let bank = db::question_plan(&tx, class)?.bank;
+            let question = |id: &Option<String>, index| match id {
+                Some(id) => bank.iter().find(|query| &query.id == id).cloned()
+                    .ok_or("Câu hỏi không còn trong ngân hàng của lớp."),
+                None => Ok(sample(index)),
+            };
+            [question(&config.desk_question_id, 0)?, question(&config.book_question_id, 1)?]
+        }
     };
-    let questions = [
-        question(&config.desk_question_id, 0)?,
-        question(&config.book_question_id, 1)?,
-    ];
     let session = EscapeSession {
         id: Uuid::new_v4().to_string(),
         classroom_id: class.into(),
@@ -421,6 +440,15 @@ pub(crate) fn escape_start(
     config: Config,
 ) -> Result<EscapeSession> {
     data.access(|db| start(db, &classroom_id, config))
+}
+
+#[tauri::command]
+pub(crate) fn escape_restart(data: State<Data>, session_id: String) -> Result<EscapeSession> {
+    data.access(|db| {
+        let previous = db.query_row("SELECT snapshot FROM escape_sessions WHERE id=?1", [&session_id], read)
+            .optional().map_err(db::storage)?.ok_or("Không tìm thấy phiên chơi.")?;
+        start_with_questions(db, &previous.classroom_id, previous.config, Some(previous.questions))
+    })
 }
 
 #[tauri::command]

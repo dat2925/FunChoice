@@ -13,7 +13,7 @@ it.each([
   { options: [0, 1, 2], expected: false, wrong: 1 },
 ])('auto-grades the selected options $options only after confirmation', ({ options, expected, wrong }) => {
   const onConfirm = vi.fn()
-  render(<QuestionCard question={question} turn={1} actions={<button>Tiếp tục</button>} onConfirm={onConfirm}/>)
+  render(<QuestionCard question={question} turn={1} gradeOnSelection actions={<button>Tiếp tục</button>} onConfirm={onConfirm}/>)
   const confirm = screen.getByRole<HTMLButtonElement>('button', { name: 'Xem kết quả' })
   const group = within(screen.getByRole('group', { name: 'Các phương án' }))
   const answers = group.getAllByRole<HTMLButtonElement>('button')

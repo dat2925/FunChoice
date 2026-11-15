@@ -42,6 +42,8 @@ export interface EscapeConfig {
   name: string; limitMinutes: number | null; sound: boolean; hints: boolean; wrongAnswer: 'retry' | 'timePenalty'
   deskQuestionId: string | null; bookQuestionId: string | null
 }
+export const defaultEscapeConfig: EscapeConfig = { name: 'Bí mật phòng học cũ', limitMinutes: 10, sound: true, hints: true,
+  wrongAnswer: 'retry', deskQuestionId: null, bookQuestionId: null }
 
 export interface EscapeSession {
   id: string; classroomId: string; schoolName: string; classroomName: string; config: EscapeConfig; startedAt: string
@@ -60,6 +62,7 @@ export interface EscapeChange { session: EscapeSession; feedback: Feedback | nul
 
 export const escapeApi = {
   start: (classroomId: string, config: EscapeConfig) => invoke<EscapeSession>('escape_start', { classroomId, config }),
+  restart: (sessionId: string) => invoke<EscapeSession>('escape_restart', { sessionId }),
   list: (classroomId?: string) => invoke<EscapeSession[]>('escape_list', { classroomId: classroomId ?? null }),
   action: (session: EscapeSession, elapsedMs: number, action: EscapeAction) =>
     invoke<EscapeChange>('escape_action', { id: session.id, revision: session.revision, elapsedMs, action }),

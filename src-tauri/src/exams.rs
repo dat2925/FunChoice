@@ -12,8 +12,8 @@ use uuid::Uuid;
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Exam {
     id: String,
-    title: String,
-    questions: Vec<Question>,
+    pub(crate) title: String,
+    pub(crate) questions: Vec<Question>,
     updated_at: String,
 }
 
@@ -38,6 +38,17 @@ pub(crate) fn list(db: &Connection, class: Option<&str>) -> Result<Vec<Exam>> {
         [class],
         read,
     )
+}
+
+pub(crate) fn find(db: &Connection, class: &str, id: &str) -> Result<Exam> {
+    db.query_row(
+        "SELECT id,title,questions,updated_at FROM exams WHERE classroom_id=?1 AND id=?2",
+        params![class, id],
+        read,
+    )
+    .optional()
+    .map_err(db::storage)?
+    .ok_or_else(|| "Không tìm thấy đề thi của lớp này.".into())
 }
 
 fn save(

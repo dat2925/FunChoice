@@ -81,7 +81,7 @@ pub struct StudentInput {
 #[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
-    count: usize,
+    pub(crate) count: usize,
     mode: String,
     pub lead: u32,
     pub gap: u32,
@@ -96,9 +96,9 @@ pub struct Settings {
     #[serde(default)]
     repeat_students: bool,
     #[serde(default)]
-    with_questions: bool,
+    pub(crate) with_questions: bool,
     #[serde(default)]
-    questions: Vec<Question>,
+    pub(crate) questions: Vec<Question>,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -152,8 +152,9 @@ impl Settings {
         Ok(())
     }
 
-    fn validate(&self) -> Result<()> {
-        if !matches!(self.mode.as_str(), "random" | "cycle" | "weighted")
+    pub(crate) fn validate(&self) -> Result<()> {
+        if self.count == 0
+            || !matches!(self.mode.as_str(), "random" | "cycle" | "weighted")
             || !matches!(self.quality.as_str(), "high" | "low")
             || self.lead > 20
             || !(1..=10).contains(&self.gap)
@@ -237,7 +238,7 @@ fn migrate(db: &Connection) -> Result<()> {
     let version: i64 = db
         .query_row("PRAGMA user_version", [], |r| r.get(0))
         .map_err(storage)?;
-    if !(0..=7).contains(&version) {
+    if !(0..=8).contains(&version) {
         return Err("Phiên bản dữ liệu không tương thích.".into());
     }
     if version == 0 {
@@ -266,6 +267,10 @@ fn migrate(db: &Connection) -> Result<()> {
     }
     if version < 7 {
         db.execute_batch(include_str!("../migrations/007_question_images.sql"))
+            .map_err(storage)?;
+    }
+    if version < 8 {
+        db.execute_batch(include_str!("../migrations/008_game_presets.sql"))
             .map_err(storage)?;
     }
     Ok(())
@@ -781,7 +786,16 @@ fn questions_for_game(
         .collect())
 }
 
-pub fn start(db: &mut Connection, class: &str, mut settings: Settings) -> Result<Session> {
+pub fn start(db: &mut Connection, class: &str, settings: Settings) -> Result<Session> {
+    start_with_questions(db, class, settings, None)
+}
+
+pub(crate) fn start_with_questions(
+    db: &mut Connection,
+    class: &str,
+    mut settings: Settings,
+    saved: Option<&[Question]>,
+) -> Result<Session> {
     settings.validate()?;
     let tx = db
         .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -812,14 +826,14 @@ pub fn start(db: &mut Connection, class: &str, mut settings: Settings) -> Result
             "Số học sinh có thể chọn trong lớp này là {eligible}."
         ));
     }
-    settings.questions = if settings.with_questions {
-        questions_for_game(
+    settings.questions = match saved {
+        Some(questions) => questions.iter().cycle().take(settings.count).cloned().collect(),
+        None if settings.with_questions => questions_for_game(
             &question_plan(&tx, class)?,
             settings.count,
             &mut rand::rng(),
-        )?
-    } else {
-        Vec::new()
+        )?,
+        None => Vec::new(),
     };
     let key = id();
     let json = serde_json::to_string(&settings).map_err(|_| "Không thể lưu cấu hình.")?;
@@ -970,7 +984,7 @@ fn validate_backup(db: &Connection) -> Result<()> {
     let schema: i64 = db.query_row("SELECT COUNT(*) FROM sqlite_schema WHERE type='table' AND
         name IN ('schools','classrooms','students','game_sessions','selection_results','cycle_members')", [], |r| r.get(0)).map_err(storage)?;
     if app != APPLICATION_ID
-        || !(1..=7).contains(&version)
+        || !(1..=8).contains(&version)
         || integrity != "ok"
         || foreign_error
         || schema != 6
@@ -1011,6 +1025,7 @@ pub fn restore(db: &mut Connection, source: &Path, pro: bool) -> Result<()> {
     history(&staged)?;
     crate::escape_room::list(&staged, None)?;
     crate::exams::list(&staged, None)?;
+    crate::game_presets::list(&staged, None)?;
     if !pro {
         let over_limit: bool = staged.query_row(
             "SELECT (SELECT COUNT(*) FROM classrooms WHERE deleted=0) > ?1
@@ -1079,7 +1094,7 @@ mod tests {
         save_question_plan(&mut db, &class, serde_json::from_str(
             r#"{"bank":[{"id":"old","text":"Câu đã có","answer":"Đáp án cũ"}],"turns":["old"]}"#
         ).unwrap()).unwrap();
-        db.execute_batch("DROP TABLE question_images; PRAGMA user_version=6;")
+        db.execute_batch("DROP TABLE game_presets; DROP TABLE question_images; PRAGMA user_version=6;")
             .unwrap();
         let legacy = folder.path().join("legacy.sqlite");
         backup(&db, &legacy).unwrap();

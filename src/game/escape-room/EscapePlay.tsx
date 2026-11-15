@@ -216,7 +216,7 @@ export default function EscapePlay({ initial, back, replay }: { initial: EscapeS
   async function restart() {
     if (busyRef.current) return
     busyRef.current = true; setBusy(true); setError('')
-    try { replay(await escapeApi.start(session.classroomId, session.config)) }
+    try { replay(await escapeApi.restart(session.id)) }
     catch (cause) { setError(errorText(cause)) }
     finally { busyRef.current = false; if (mounted.current) setBusy(false) }
   }

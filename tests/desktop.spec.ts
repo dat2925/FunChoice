@@ -66,6 +66,90 @@ test.afterEach(async () => {
   }
 })
 
+test('Windows: chuẩn bị nhiều cấu hình theo lớp và chơi ngay sau khi mở lại', async () => {
+  data = await mkdtemp(resolve(tmpdir(), 'solotech-presets-'))
+  let page = await launch()
+  const invoke = <T,>(command: string, args: Record<string, unknown>) => page.evaluate(({ command, args }) => {
+    const tauri = (window as unknown as { __TAURI_INTERNALS__: { invoke: (command: string, args: Record<string, unknown>) => Promise<T> } }).__TAURI_INTERNALS__
+    return tauri.invoke(command, args)
+  }, { command, args })
+  await expect(page.getByRole('heading', { name: 'FunChoice.' })).toBeVisible()
+  const schoolId = await invoke<string>('save_school', { name: 'Tiểu học Hoa Sen', theme: 'rural' })
+  const classroomId = await invoke<string>('save_classroom', { schoolId, name: 'Lớp 5A' })
+  for (const fullName of ['Minh An', 'Khánh Linh']) {
+    await invoke('save_student', { classroomId, student: { fullName, studentCode: null, gender: null, isActive: true } })
+  }
+  const bank = [
+    { id: 'a', text: 'Hai cộng hai bằng bao nhiêu?', answer: null, options: ['4', '5'], correctOptions: [0] },
+    { id: 'b', text: 'Thủ đô của Việt Nam là gì?', answer: 'Hà Nội' },
+  ]
+  await invoke('save_class_question_plan', { classroomId, plan: { bank, turns: [] } })
+  const exam = await invoke<{ id: string }>('save_exam', { classroomId, title: 'Đề ôn tập', questionIds: ['a', 'b'] })
+  const openPresets = async () => {
+    await page.getByRole('button', { name: 'Xem lớp học' }).click()
+    await page.getByRole('button', { name: 'Xem học sinh' }).click()
+    await page.getByRole('button', { name: 'Cấu hình đã lưu', exact: true }).click()
+  }
+  const start = (title: string) => page.getByRole('article').filter({ has: page.getByRole('heading', { name: title, exact: true }) })
+    .getByRole('button', { name: 'Chơi ngay', exact: true }).click()
+  const create = async (title: string, game: string, source: string) => {
+    await page.getByRole('button', { name: 'Tạo cấu hình', exact: true }).click()
+    await page.getByLabel('Tên cấu hình').fill(title)
+    await page.getByLabel(/^Trò chơi/).selectOption(game)
+    await page.getByLabel('Nguồn câu hỏi').selectOption(source)
+  }
+  await page.reload()
+  await openPresets()
+  await create('Ôn trước giờ học', 'meteor', 'questions')
+  await page.getByLabel('Thêm câu hỏi').selectOption('a')
+  await page.getByLabel('Thêm câu hỏi').selectOption('b')
+  await page.getByRole('button', { name: 'Đưa câu 2 lên' }).click()
+  await page.getByLabel('Chạy trước lần rơi đầu').selectOption('0')
+  await page.getByLabel('Tốc độ trò chơi').selectOption('2')
+  await page.getByRole('button', { name: 'Lưu cấu hình', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Ôn trước giờ học' })).toBeVisible()
+
+  await create('Thi đấu theo đề', 'relay', 'exam')
+  await page.locator('label').filter({ hasText: /^Đề thi/ }).locator('select').selectOption(exam.id)
+  await page.getByLabel('Số vòng').fill('1')
+  await page.getByRole('button', { name: 'Lưu cấu hình', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Thi đấu theo đề' })).toBeVisible()
+
+  await create('Giải đố theo đề', 'escape', 'exam')
+  await page.locator('label').filter({ hasText: /^Đề thi/ }).locator('select').selectOption(exam.id)
+  await page.getByLabel('Thời lượng').selectOption('5')
+  await page.getByRole('button', { name: 'Lưu cấu hình', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Giải đố theo đề' })).toBeVisible()
+
+  await close()
+  page = await launch()
+  await invoke('delete_exam', { classroomId, id: exam.id })
+  await invoke('save_class_question_plan', { classroomId, plan: { bank: [], turns: [] } })
+  await openPresets()
+  await expect(page.getByRole('button', { name: 'Chơi ngay', exact: true })).toHaveCount(3)
+  await start('Thi đấu theo đề')
+  const relay = page.getByRole('region', { name: 'Màn thi đấu tiếp sức' })
+  await expect(relay.getByRole('heading', { name: bank[0].text })).toBeVisible()
+  await relay.getByRole('button', { name: 'A 4', exact: true }).click()
+  await expect(relay.getByRole('status')).toHaveText('Trả lời đúng!')
+  await relay.getByRole('button', { name: 'Tiếp tục', exact: true }).click()
+  await expect(relay.getByRole('heading', { name: bank[1].text })).toBeVisible()
+  await relay.getByRole('button', { name: 'Sai / Bỏ qua', exact: true }).click()
+  await relay.getByRole('button', { name: 'Về cấu hình đã lưu' }).click()
+
+  await start('Giải đố theo đề')
+  await expect(page.getByRole('heading', { name: 'Giải đố theo đề' })).toBeVisible()
+  await page.getByRole('button', { name: 'Bàn học', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Chi tiết khám phá' }).getByRole('heading', { name: bank[0].text })).toBeVisible()
+  await page.getByRole('button', { name: 'Quay lại', exact: true }).click()
+  await page.getByRole('button', { name: 'Lưu và quay lại' }).click()
+
+  await start('Ôn trước giờ học')
+  await expect(page.getByRole('heading', { name: bank[1].text })).toBeVisible({ timeout: 12000 })
+  await page.getByRole('button', { name: 'Hiện đáp án' }).click()
+  await expect(page.locator('.question-answer')).toContainText('Hà Nội')
+})
+
 test('Windows: nhập Word, lưu ảnh và trình chiếu câu hỏi sau khi mở lại', async ({}, info) => {
   data = await mkdtemp(resolve(tmpdir(), 'solotech-word-'))
   let page = await launch()
@@ -469,7 +553,7 @@ test('Windows: nhập Excel, chơi với 99 học sinh, mở lại giữa lượ
   if (correctOptions.length) {
     const options = firstRelay.getByRole('group', { name: 'Các phương án' }).getByRole('button')
     for (const index of correctOptions) await options.nth(index).click()
-    await firstRelay.getByRole('button', { name: 'Xem kết quả' }).click()
+    if (correctOptions.length > 1) await firstRelay.getByRole('button', { name: 'Xem kết quả' }).click()
     await expect(firstRelay.getByRole('status')).toHaveText('Trả lời đúng!')
     await firstRelay.getByRole('button', { name: 'Tiếp tục', exact: true }).click()
   } else await firstRelay.getByRole('button', { name: 'Đúng · +1 điểm' }).click()

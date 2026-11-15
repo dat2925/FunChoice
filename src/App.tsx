@@ -1,14 +1,17 @@
 import { ArrowLeft, ArrowRight, CalendarClock, CircleHelp, Database, DoorOpen, Download, FileUp, FolderOpen, History, Pencil, Play, Plus, School as SchoolIcon, Search, ShieldCheck, Sparkles, Trash2, Users, X } from 'lucide-react'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { api, type LicenseInfo, genderLabels, modes, schoolThemes, type SchoolTheme, type Gender, type Classroom, type School, type Session, type Student } from './api'
+import { api, type LicenseInfo, genderLabels, modes, schoolThemes, type SchoolTheme, type Gender, type Classroom, type School, type Session, type Student, type Question } from './api'
 import { restoreMusic, useDesk } from './store'
 import { Empty, Hero, Shell } from './Layout'
 import Modal, { errorText, type DialogSpec } from './Modal'
 import Setup from './Setup'
 import QuestionSetup from './QuestionSetup'
 import ExamManager from './ExamManager'
+import GamePresets from './GamePresets'
+import { presetApi, type GamePreset } from './presetApi'
 import Relay from './Relay'
+import { relayTeams, type RelayConfig } from './RelaySettings'
 import ProPurchase, { proPurchaseAvailable } from './ProPurchase'
 import SchoolThemePicker from './SchoolThemePicker'
 import UpdatePanel from './UpdatePanel'
@@ -46,6 +49,7 @@ export default function App() {
   const [game, setGame] = useState<{ initial: Session; students: Student[]; audio?: AudioContext; mp3?: AudioBuffer } | null>(null)
   const [result, setResult] = useState<Session | null>(null)
   const [escape, setEscape] = useState<EscapeSession>()
+  const [preparedRelay, setPreparedRelay] = useState<{ classroom: Classroom; config: RelayConfig; questions: Question[]; students: Student[] }>()
   const [dialog, setDialog] = useState<DialogSpec | null>(null)
   const [search, setSearch] = useState('')
   const [notice, setNotice] = useState('')
@@ -78,7 +82,7 @@ export default function App() {
         } else if (page === 'classrooms' && school) {
           const list = await api.classrooms(school.id)
           if (current) setClassrooms(list)
-        } else if (['students', 'games', 'setup', 'relay'].includes(page) && classroom) {
+        } else if (['students', 'games', 'presets', 'setup', 'relay'].includes(page) && classroom) {
           const list = await api.students(classroom.id)
           if (current) setStudents(list)
         } else if (page === 'history') {
@@ -209,13 +213,14 @@ export default function App() {
       })
     } catch (cause) { setError(errorText(cause)) }
   }
-  async function play(existing?: Session) {
+  async function play(existing?: Session, preset?: GamePreset) {
     if (lock.current || (!existing && !classroom)) return
     lock.current = true
     setBusy(true)
     setError('')
     let audio: AudioContext | undefined
-    const config = existing?.settings ?? (license?.pro ? settings : { ...settings, count: 1, music: 'suspense' as const })
+    const config = existing?.settings ?? (preset?.game.kind === 'meteor' ? preset.game.settings
+      : license?.pro ? settings : { ...settings, count: 1, music: 'suspense' as const })
     try {
       if (config.sound && typeof AudioContext !== 'undefined') {
         audio = new AudioContext()
@@ -233,18 +238,38 @@ export default function App() {
           resolvedConfig = { ...config, music: 'suspense' }
         }
       }
-      const session = existing ? { ...existing, settings: resolvedConfig } : await api.start(classId, resolvedConfig)
+      const session = existing ? { ...existing, settings: resolvedConfig }
+        : preset ? await presetApi.meteor(classId, preset.id) : await api.start(classId, resolvedConfig)
       setResult(null)
       setPending(session)
       setGame({ initial: session, students: roster, audio, mp3 })
     } catch (cause) {
       if (audio) void audio.close()
+      if (preset) throw cause
       setError(errorText(cause))
       setRefresh((n) => n + 1)
     } finally {
       lock.current = false
       setBusy(false)
     }
+  }
+  async function playPreset(preset: GamePreset) {
+    if (!classroom || lock.current) return
+    if (preset.game.kind === 'meteor') { await play(undefined, preset); return }
+    lock.current = true
+    try {
+      if (preset.game.kind === 'escape') {
+        setEscape(await presetApi.escape(classroom.id, preset.id))
+      } else {
+        if (pending) throw new Error('Hãy tiếp tục hoặc kết thúc lượt Thiên thạch đang dở trước khi chơi.')
+        const roster = (await api.students(classroom.id)).filter((student) => student.isActive)
+        if (roster.length < 2) throw new Error('Tiếp sức cần ít nhất hai học sinh đang hoạt động.')
+        const empty = relayTeams(roster, preset.game.settings).find((team) => !team.members.length)
+        if (empty) throw new Error(`${empty.name} đang trống. Hãy sửa cấu hình để chia lại thành viên.`)
+        if (!preset.questions.length) throw new Error('Tiếp sức cần ít nhất một câu hỏi.')
+        setPreparedRelay({ classroom, config: preset.game.settings, questions: preset.questions, students: roster })
+      }
+    } finally { lock.current = false }
   }
   function closeGame() {
     if (game?.audio) void game.audio.close()
@@ -299,7 +324,10 @@ export default function App() {
   </div>
   let body: ReactNode
   if (escape) {
-    body = <EscapePlay key={escape.id} initial={escape} back={() => { setEscape(undefined); if (page !== 'history') navigate('games') }} replay={setEscape}/>
+    body = <EscapePlay key={escape.id} initial={escape} back={() => {
+      setEscape(undefined)
+      if (page !== 'history' && page !== 'presets') navigate('games')
+    }} replay={setEscape}/>
   } else if (game) {
     body = <GameView initial={game.initial} students={game.students} audio={game.audio} mp3={game.mp3}
       paused={!!dialog}
@@ -307,8 +335,13 @@ export default function App() {
       recover={() => { closeGame(); navigate('schools') }}
       finish={(session) => { closeGame(); setDialog(null); setPending(null); setResult(session) }}/>
   } else if (result) {
-    body = <Results session={result} back={() => { setResult(null); navigate(page === 'history' ? 'history' : classroom ? 'students' : 'schools') }}
-      replay={page !== 'history' && classroom ? () => { setResult(null); navigate('setup') } : undefined}/>
+    body = <Results session={result} back={() => {
+      setResult(null)
+      navigate(page === 'history' || page === 'presets' ? page : classroom ? 'students' : 'schools')
+    }} replay={page !== 'history' && classroom ? () => { setResult(null); navigate(page === 'presets' ? 'presets' : 'setup') } : undefined}/>
+  } else if (preparedRelay) {
+    body = <Relay classroom={preparedRelay.classroom} students={preparedRelay.students} prepared={preparedRelay}
+      back={() => setPreparedRelay(undefined)} openQuestions={() => navigate('questions')} onMatchChange={setRelayActive}/>
   } else {
     let section: ReactNode
     switch (page) {
@@ -340,7 +373,7 @@ export default function App() {
       case 'students':
         section = <div className="subpage">
           <button className="text-button" onClick={() => navigate('classrooms')}><ArrowLeft size={16}/> Danh sách lớp</button>
-          <div className="page-heading"><div><h1>{classroom?.name}</h1><p>{school?.name} · {active}/{students.length} học sinh đang hoạt động</p></div><div className="toolbar-actions"><button className="button secondary" onClick={() => navigate('questions')}><CircleHelp size={17}/> Chuẩn bị câu hỏi</button><button className="button primary" onClick={() => navigate('games')}><Play size={17} fill="currentColor"/> Cấu hình trò chơi</button></div></div>
+          <div className="page-heading"><div><h1>{classroom?.name}</h1><p>{school?.name} · {active}/{students.length} học sinh đang hoạt động</p></div><div className="toolbar-actions"><button className="button secondary" onClick={() => navigate('questions')}><CircleHelp size={17}/> Chuẩn bị câu hỏi</button><button className="button secondary" onClick={() => navigate('games')}>Cấu hình trò chơi</button><button className="button primary" onClick={() => navigate('presets')}><Play size={17}/> Cấu hình đã lưu</button></div></div>
           <div className="toolbar wrap"><SearchField search={search} setSearch={setSearch} label="Tìm tên hoặc mã học sinh..."/><div className="toolbar-actions">
             <button className="button secondary" onClick={() => file.current?.click()}><FileUp size={16}/> Nhập Excel / CSV</button>
             <input type="file" ref={file} accept=".xlsx,.csv" hidden onChange={(e) => void importFile(e.currentTarget)}/>
@@ -361,10 +394,16 @@ export default function App() {
       case 'exams':
         section = <ExamManager school={school} classroom={classroom}/>
         break
+      case 'presets':
+        section = classroom && <GamePresets key={classroom.id} classroom={classroom} students={students} pro={!!license?.pro}
+          back={() => navigate('students')} start={playPreset}/>
+        break
       case 'games':
         section = <div className="subpage">
           <button className="text-button" onClick={() => navigate('students')}><ArrowLeft size={16}/> Chi tiết lớp</button>
-          <div className="page-heading"><div><h1>Chọn trò chơi</h1><p>{school?.name} · {classroom?.name}</p></div></div>
+          <div className="page-heading"><div><h1>Chọn trò chơi</h1><p>{school?.name} · {classroom?.name}</p></div>
+            <button type="button" className="button secondary" onClick={() => navigate('presets')}>Cấu hình đã lưu</button>
+          </div>
           <div className="card-grid">
             <article className="school-card panel"><span className="school-icon tone-0"><Sparkles size={24}/></span><h3>Thiên thạch</h3>
               <p>Thiên thạch chọn học sinh. Có thể hiện câu hỏi sau mỗi lượt.</p>

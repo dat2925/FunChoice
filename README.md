@@ -71,6 +71,10 @@ Trong **Chuẩn bị câu hỏi**, chọn **Tải Excel mẫu**, sau đó nhập
 
 Trong chương **Bí mật phòng học cũ**, cả lớp trả lời câu hỏi và khám phá các đồ vật để thu thập manh mối. Dùng manh mối để mở két, lấy chìa khóa và thoát khỏi căn phòng. Giáo viên có thể chọn câu hỏi của lớp, đặt thời lượng và bật gợi ý. Tiến độ được lưu để có thể tạm dừng và tiếp tục sau.
 
+## Chuẩn bị nhiều cấu hình cho một lớp
+
+Mở lớp, bấm **Cấu hình đã lưu → Tạo cấu hình**, rồi đặt tên theo tiết học. Chọn trò chơi, các thiết lập và nguồn câu hỏi. Có thể chọn từng câu từ ngân hàng hoặc chọn một đề đã lưu. FunChoice lưu nội dung câu hỏi và thứ tự cùng cấu hình. Khi đến lớp, mở **Cấu hình đã lưu** và bấm **Chơi ngay** ở cấu hình cần dùng.
+
 ## Miễn phí và Pro
 
 Mã tích hợp thanh toán và cấp key theo mã máy nằm ở [server/](server/README.md), gồm hướng dẫn chạy mock và cấu hình triển khai payOS.

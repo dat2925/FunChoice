@@ -49,14 +49,14 @@ export function Hero({ title, description, button, onAction }: { title: ReactNod
 const labels: Record<Page, string> = {
   schools: 'Trường học', classrooms: 'Lớp học', students: 'Học sinh',
   questions: 'Chuẩn bị câu hỏi', games: 'Chọn trò chơi', setup: 'Thiên thạch', relay: 'Tiếp sức đấu đội', escape: 'Căn phòng bí ẩn',
-  exams: 'Đề thi và câu hỏi', history: 'Lịch sử chọn', backup: 'Sao lưu dữ liệu',
+  presets: 'Cấu hình đã lưu', exams: 'Đề thi và câu hỏi', history: 'Lịch sử chọn', backup: 'Sao lưu dữ liệu',
 }
 export function Shell({ page, school, classroom, navigate, help, proStatus, upgrade, purchase, updateSlot, children }: {
   page: Page; school: School | null; classroom: Classroom | null
   navigate: (page: Page) => void; help: () => void; proStatus?: string; upgrade: () => void; purchase?: () => void
   updateSlot: (node: HTMLDivElement | null) => void; children: ReactNode
 }) {
-  const schoolArea = ['schools', 'classrooms', 'students', 'questions', 'games', 'setup', 'relay', 'escape'].includes(page)
+  const schoolArea = ['schools', 'classrooms', 'students', 'questions', 'games', 'presets', 'setup', 'relay', 'escape'].includes(page)
   return <div className="shell">
     <aside className="sidebar">
       <button className="brand" onClick={() => navigate('schools')} aria-label="FunChoice, về trang trường học">

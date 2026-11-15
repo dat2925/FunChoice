@@ -4,9 +4,10 @@ import { open } from '@tauri-apps/plugin-dialog'
 import { errorText } from './Modal'
 import { api, meteorStyles, modes, musicTracks, type Settings } from './api'
 
-export default function Setup({ active, total, school, classroom, settings, setSettings, start, back, openQuestions, busy, pro = false, upgrade }: {
-  active: number; total: number; school: string; classroom: string; settings: Settings
-  setSettings: (value: Partial<Settings>) => void; start: () => void; back: () => void; openQuestions?: () => void; busy: boolean; pro?: boolean; upgrade?: () => void
+export default function Setup({ active, total, school, classroom, settings, setSettings, start, back, openQuestions, busy, pro = false, upgrade, preparing = false }: {
+  active: number; total: number; school?: string; classroom?: string; settings: Settings
+  setSettings: (value: Partial<Settings>) => void; start?: () => void; back?: () => void; openQuestions?: () => void; busy?: boolean
+  pro?: boolean; upgrade?: () => void; preparing?: boolean
 }) {
   const [musicMessage, setMusicMessage] = useState('')
   const [pickingMusic, setPickingMusic] = useState(false)
@@ -24,21 +25,21 @@ export default function Setup({ active, total, school, classroom, settings, setS
     finally { setPickingMusic(false) }
   }
   const { lead, gap, speed } = settings
-  const maximum = pro && settings.repeatStudents && active ? undefined : pro ? active : Math.min(active, 1)
+  const maximum = pro && (preparing || (settings.repeatStudents && active)) ? undefined : pro ? active : Math.min(active, 1)
   const count = pro ? settings.count : 1
-  return <div className="subpage">
-    <button className="text-button" onClick={back}><ArrowLeft size={16}/> Chọn trò chơi</button>
-    <div className="page-heading"><div><h1>Cấu hình trò chơi</h1><p>{school} · {classroom}</p></div></div>
+  return <div className={preparing ? undefined : 'subpage'}>
+    {!preparing && <><button className="text-button" onClick={back}><ArrowLeft size={16}/> Chọn trò chơi</button>
+      <div className="page-heading"><div><h1>Cấu hình trò chơi</h1><p>{school} · {classroom}</p></div></div></>}
     <div className="setup-grid">
       <div className="panel setup-panel">
         <h2><Users size={20}/> Chọn học sinh</h2>
-        <label>Chế độ chơi
+        {!preparing && <label>Chế độ chơi
           <select value={settings.withQuestions ? 'questions' : 'only'} onChange={(e) => setSettings({ withQuestions: e.target.value === 'questions' })}>
             <option value="only">Chỉ chọn học sinh</option>
             <option value="questions">Chọn học sinh và hiện câu hỏi</option>
           </select>
-        </label>
-        {settings.withQuestions && <button className="text-button" onClick={openQuestions}>Chuẩn bị câu hỏi cho từng lượt</button>}
+        </label>}
+        {!preparing && settings.withQuestions && <button className="text-button" onClick={openQuestions}>Chuẩn bị câu hỏi cho từng lượt</button>}
         <p className="muted">{active} học sinh đang hoạt động trên tổng số {total} học sinh.</p>
         <div className="form-grid">
           <label>{settings.repeatStudents ? 'Số lượt chọn' : 'Số học sinh được chọn'}<input type="number" value={count || ''} min="1" max={maximum} disabled={!pro} onChange={(e) => setSettings({ count: Number(e.target.value) })}/></label>
@@ -49,7 +50,7 @@ export default function Setup({ active, total, school, classroom, settings, setS
           </label>
         </div>
         <label className="switch-row"><span>Cho phép chọn lại học sinh</span><input type="checkbox" checked={settings.repeatStudents} onChange={(e) => setSettings({ repeatStudents: e.target.checked })}/></label>
-        {!pro && <p className="hint">Bản miễn phí chọn 1 học sinh mỗi lượt. <button className="text-button" onClick={upgrade}>Mở khóa Pro</button></p>}
+        {!pro && <p className="hint">Bản miễn phí chọn 1 học sinh mỗi lượt. {upgrade && <button type="button" className="text-button" onClick={upgrade}>Mở khóa Pro</button>}</p>}
         <p className="hint">{settings.repeatStudents
           ? settings.mode === 'cycle' ? 'Học sinh có thể được chọn lại khi mở vòng mới.' : 'Mỗi lượt có thể chọn lại học sinh đã được gọi.'
           : modes[settings.mode].info}</p>
@@ -76,7 +77,7 @@ export default function Setup({ active, total, school, classroom, settings, setS
           </select>
         </label>
         {pro && <div className="music-file">
-          <button className="button secondary" onClick={() => void chooseMusic()} disabled={pickingMusic}>Chọn tệp MP3…</button>
+          <button type="button" className="button secondary" onClick={() => void chooseMusic()} disabled={pickingMusic}>Chọn tệp MP3…</button>
           {musicMessage && <p className="muted" role="status">{musicMessage}</p>}
         </div>}
         <label className="switch-row"><span><Volume2 size={18}/> Âm thanh</span><input type="checkbox" checked={settings.sound} onChange={(e) => setSettings({ sound: e.target.checked })}/></label>
@@ -84,6 +85,6 @@ export default function Setup({ active, total, school, classroom, settings, setS
 
       </div>
     </div>
-    <div className="start-strip"><span>{active ? 'Kết quả được lưu theo từng lượt chọn.' : 'Hãy thêm hoặc kích hoạt học sinh trong lớp để bắt đầu.'}</span><button className="button primary big" onClick={start} disabled={busy || pickingMusic || !Number.isSafeInteger(count) || count < 1 || (maximum !== undefined && count > maximum)}><Play size={18} fill="currentColor"/> {busy ? 'Đang tạo lượt…' : 'BẮT ĐẦU TRÒ CHƠI'}</button></div>
+    {!preparing && <div className="start-strip"><span>{active ? 'Kết quả được lưu theo từng lượt chọn.' : 'Hãy thêm hoặc kích hoạt học sinh trong lớp để bắt đầu.'}</span><button className="button primary big" onClick={start} disabled={busy || pickingMusic || !Number.isSafeInteger(count) || count < 1 || (maximum !== undefined && count > maximum)}><Play size={18} fill="currentColor"/> {busy ? 'Đang tạo lượt…' : 'BẮT ĐẦU TRÒ CHƠI'}</button></div>}
   </div>
 }

@@ -3,6 +3,7 @@
 mod db;
 mod escape_room;
 mod exams;
+mod game_presets;
 mod license;
 mod payments;
 mod question_images;
@@ -355,6 +356,12 @@ fn main() {
             exams::save_exam,
             exams::delete_exam,
             escape_room::escape_start,
+            escape_room::escape_restart,
+            game_presets::list_game_presets,
+            game_presets::save_game_preset,
+            game_presets::delete_game_preset,
+            game_presets::start_meteor_preset,
+            game_presets::start_escape_preset,
             escape_room::escape_list,
             escape_room::escape_action,
             start_game,
