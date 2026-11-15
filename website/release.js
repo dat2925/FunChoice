@@ -1,4 +1,4 @@
-async function updateDownloadLink() {
+async function updateDownloadLinks() {
   try {
     const response = await fetch('https://api.github.com/repos/dat2925/FunChoice/releases/latest')
     if (response.status === 404) {
@@ -7,15 +7,14 @@ async function updateDownloadLink() {
     }
     if (!response.ok) return
     const release = await response.json()
-    const setup = release.assets?.find((asset) => /^FunChoice[-_][\d.]+[-_]x64-setup\.exe$/i.test(asset.name))
-    if (!setup?.browser_download_url?.startsWith('https://github.com/dat2925/FunChoice/releases/download/')) return
-    const download = document.querySelector('[data-download]')
-    download.href = setup.browser_download_url
-    download.textContent = 'Tải FunChoice cho Windows ↓'
-    document.querySelector('[data-version]').textContent = '· ' + release.tag_name
+    const installer = release.assets?.find((asset) => /^FunChoice[-_][\d.]+[-_]x64-setup\.exe$/i.test(asset.name))
+    if (!installer?.browser_download_url?.startsWith('https://github.com/dat2925/FunChoice/releases/download/')) return
+
+    for (const link of document.querySelectorAll('[data-download]')) link.href = installer.browser_download_url
+    for (const version of document.querySelectorAll('[data-version]')) version.textContent = '· ' + release.tag_name
   } catch {
-    // Keep the releases link available if the GitHub API is unreachable.
+    // The fallback links open the latest release if the API is unreachable.
   }
 }
 
-void updateDownloadLink()
+void updateDownloadLinks()
