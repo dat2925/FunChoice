@@ -1,0 +1,35 @@
+:root { color-scheme: dark; font: 16px/1.55 "Segoe UI", system-ui, sans-serif; color: #f8f3ff; background: #190f30; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+a { color: inherit; }
+a:focus-visible { outline: 3px solid #ffcb81; outline-offset: 5px; }
+.wrap { width: min(1180px, calc(100% - 48px)); margin-inline: auto; }
+.topbar { display: flex; align-items: center; justify-content: space-between; min-height: 76px; gap: 14px; border-bottom: 1px solid #ffffff20; }
+.brand { font-size: 24px; font-weight: 800; letter-spacing: -.04em; text-decoration: none; white-space: nowrap; }
+.brand span { color: #bfacff; }
+.brand small { margin-left: 12px; color: #d4c7f1; font-size: 9px; letter-spacing: .14em; }
+.nav-link, .footer a { color: #e1d6fa; text-underline-offset: 4px; }
+.hero { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); align-items: center; gap: clamp(24px, 5vw, 70px); padding-block: clamp(50px, 8vw, 108px); }
+.eyebrow { margin: 0 0 10px; color: #c9b5ff; font-size: 12px; font-weight: 800; letter-spacing: .13em; }
+h1 { margin: 0; font-size: clamp(52px, 7vw, 96px); line-height: 1.04; letter-spacing: -.07em; }
+h1 em { color: #ffca7e; font-style: normal; }
+.lede { max-width: 34ch; margin: 18px 0 24px; font-size: clamp(17px, 1.7vw, 22px); color: #e6dbf7; }
+.download { display: inline-flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 18px; border-radius: 10px; background: #ffca7e; color: #2c1b25; font-weight: 800; text-decoration: none; }
+.download:hover { background: #ffda9f; }
+.download span { font-size: 20px; line-height: 1; }
+.platform { margin: 9px 0 0; font-size: 13px; color: #d7c8ee; }
+.preview { margin: 0; overflow: hidden; border: 1px solid #5b4780; border-radius: 16px; background: #251740; box-shadow: 0 20px 60px #0e061b9e; }
+.window { padding: 10px 13px; display: flex; align-items: center; gap: 5px; color: #dfd1f4; }
+.window span { width: 7px; aspect-ratio: 1; border-radius: 50%; background: #ae91e6; }
+.window small { margin-left: 7px; }
+.preview img { width: 100%; height: auto; display: block; }
+.installation { background: #f7f2ff; color: #291747; }
+.steps-wrap { padding-block: 36px 45px; }
+h2 { margin: 0 0 20px; font-size: clamp(26px, 3vw, 38px); letter-spacing: -.04em; }
+ol { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding: 0; margin: 0; list-style: none; counter-reset: steps; }
+li { counter-increment: steps; padding: 15px; border: 1px solid #e2d5f6; background: #fff; border-radius: 12px; }
+li::before { content: counter(steps); display: inline-grid; place-items: center; width: 26px; height: 26px; margin-right: 8px; border-radius: 7px; background: #eadfff; color: #4c2e87; font-weight: 800; }
+li p { margin: 8px 0 0; color: #4f4164; }
+.footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; padding-block: 22px; font-size: 14px; }
+@media (max-width: 790px) { .hero { grid-template-columns: 1fr; } .preview { max-width: 640px; } ol { grid-template-columns: 1fr; } }
+@media (max-width: 365px) { .wrap { width: calc(100% - 28px); } .brand small { display: none; } }
