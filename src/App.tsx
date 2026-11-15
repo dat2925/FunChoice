@@ -10,6 +10,7 @@ import QuestionSetup from './QuestionSetup'
 import Relay from './Relay'
 import ProPurchase, { proPurchaseAvailable } from './ProPurchase'
 import SchoolThemePicker from './SchoolThemePicker'
+import UpdatePanel from './UpdatePanel'
 import GameView, { Results } from './GameView'
 import { asImage, parts } from './game/characters'
 import { exportCsv, normalized, readRoster } from './roster'
@@ -44,6 +45,8 @@ export default function App() {
   const [busy, setBusy] = useState(false)
   const [ready, setReady] = useState(false)
   const [refresh, setRefresh] = useState(0)
+  const [updateSlot, setUpdateSlot] = useState<HTMLDivElement | null>(null)
+  const [relayActive, setRelayActive] = useState(false)
   const lock = useRef(false)
   const file = useRef<HTMLInputElement>(null)
 
@@ -363,7 +366,7 @@ export default function App() {
         break
       case 'relay':
         section = classroom && <Relay key={classroom.id} classroom={classroom} students={students.filter((student) => student.isActive)}
-          back={() => navigate('games')} openQuestions={() => navigate('questions')}/>
+          back={() => navigate('games')} openQuestions={() => navigate('questions')} onMatchChange={setRelayActive}/>
         break
       case 'setup':
         section = <Setup active={active} total={students.length} school={school?.name ?? ''} classroom={classroom?.name ?? ''} settings={settings}
@@ -388,7 +391,7 @@ export default function App() {
         </div>
         break
     }
-    body = <Shell page={page} school={school} classroom={classroom} navigate={navigate} updateBlocked={!ready || !!pending || busy || !!dialog || purchaseOpen} proStatus={license?.pro ? (license.expiresAt == null ? 'Vĩnh viễn' : 'Đến hết ' + licenseDate(license.expiresAt)) : undefined} upgrade={() => void proDialog()} purchase={purchaseAvailable ? () => setPurchaseOpen(true) : undefined} help={() => setDialog({
+    body = <Shell page={page} school={school} classroom={classroom} navigate={navigate} updateSlot={setUpdateSlot} proStatus={license?.pro ? (license.expiresAt == null ? 'Vĩnh viễn' : 'Đến hết ' + licenseDate(license.expiresAt)) : undefined} upgrade={() => void proDialog()} purchase={purchaseAvailable ? () => setPurchaseOpen(true) : undefined} help={() => setDialog({
       title: 'Hướng dẫn sử dụng', body: <div className="help-text"><p>Thêm trường, tạo lớp và thêm học sinh. Khi nhập Excel hoặc CSV, đặt tiêu đề <strong>Họ và tên</strong> ở dòng đầu. Bạn có thể thêm cột <strong>Mã học sinh</strong>, <strong>Giới tính</strong> (Nam/Nữ) và <strong>Trạng thái</strong>.</p><p>Mở <strong>Cấu hình trò chơi</strong> để chọn số lượng, chế độ và hiệu ứng. Trong lượt chơi, chọn <strong>Toàn màn hình</strong> để trình chiếu. Kết quả được lưu theo từng lần công bố.</p><p>Nếu đóng cửa sổ khi đang chơi, mở lại ứng dụng và chọn <strong>Tiếp tục lượt</strong>.</p></div>,
     })}>
       {error && <div className="alert" role="alert">{error}<button className="icon-button" aria-label="Đóng thông báo lỗi" onClick={() => setError('')}><X size={16}/></button></div>}
@@ -398,6 +401,7 @@ export default function App() {
   }
   return <>
     {body}
+    <UpdatePanel slot={updateSlot} blocked={!ready || !!pending || busy || !!game || !!result || relayActive || !!dialog || purchaseOpen}/>
     {notice && !game && <div className="toast" role="status"><Sparkles size={17}/>{notice}<button className="icon-button" aria-label="Đóng thông báo" onClick={() => setNotice('')}><X size={16}/></button></div>}
     {dialog && <Modal spec={dialog} close={() => setDialog(null)}/>}
     {purchaseAvailable && <ProPurchase open={purchaseOpen} close={() => setPurchaseOpen(false)} license={license}

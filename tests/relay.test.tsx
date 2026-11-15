@@ -15,12 +15,14 @@ it('chấm điểm theo đội và chuyển lượt sang thành viên tiếp the
     id: String(index), classroomId: classroom.id, fullName, studentCode: null,
     characterVariant: 0, gender: null, isActive: true,
   }))
-  render(<Relay classroom={classroom} students={students} back={vi.fn()} openQuestions={vi.fn()}/>)
+  const onMatchChange = vi.fn()
+  render(<Relay classroom={classroom} students={students} back={vi.fn()} openQuestions={vi.fn()} onMatchChange={onMatchChange}/>)
   fireEvent.change(screen.getByLabelText('Đội của Dũng'), { target: { value: '0' } })
   fireEvent.change(screen.getByLabelText('Số vòng'), { target: { value: '2' } })
   expect((screen.getByRole('button', { name: 'Bắt đầu tiếp sức' }) as HTMLButtonElement).disabled).toBe(true)
   await screen.findByText(/1 câu hỏi được xáo/)
   fireEvent.click(screen.getByRole('button', { name: 'Bắt đầu tiếp sức' }))
+  expect(onMatchChange).toHaveBeenLastCalledWith(true)
   const stage = within(screen.getByRole('region', { name: 'Màn thi đấu tiếp sức' }))
   expect(stage.getByText('An', { exact: true })).toBeTruthy()
   fireEvent.click(stage.getByRole('button', { name: /B\s*5/ }))
@@ -40,4 +42,6 @@ it('chấm điểm theo đội và chuyển lượt sang thành viên tiếp the
   expect(stage.getByText('Bình', { exact: true })).toBeTruthy()
   fireEvent.click(stage.getByRole('button', { name: 'Sai / Bỏ qua' }))
   expect(stage.getByRole('heading', { name: 'Đội 1 chiến thắng!' })).toBeTruthy()
+  fireEvent.click(stage.getByRole('button', { name: 'Về cấu hình tiếp sức' }))
+  expect(onMatchChange).toHaveBeenLastCalledWith(false)
 })

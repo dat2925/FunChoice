@@ -309,6 +309,9 @@ label input:not([type=checkbox]), label select { width: 100%; border: 1px solid 
 }
 .update-panel { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-top: 10px; color: var(--muted); font-size: 11px; }
 .update-panel > .button { padding: 6px 9px; min-height: 30px; font-size: 11px; }
+.update-notice { position: fixed; z-index: 5; top: 18px; right: 20px; display: flex; align-items: flex-start; gap: 11px; width: min(360px, calc(100vw - 40px)); padding: 14px; border: 1px solid #e8dcfa; border-radius: 12px; background: #fff; color: var(--accent-dark); box-shadow: 0 9px 30px #3c236330; }
+.update-notice-content { display: grid; gap: 8px; min-width: 0; color: var(--ink); overflow-wrap: anywhere; }
+.update-notice .button { min-height: 32px; padding: 6px 10px; }
 .update-dialog { margin: auto; width: min(460px, calc(100% - 32px)); max-height: calc(100% - 32px); padding: 24px; color: var(--ink); }
 .update-dialog::backdrop { background: #19102f91; }
 .update-dialog h2 { margin: 0 0 12px; font-size: 22px; }

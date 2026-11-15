@@ -17,8 +17,8 @@ function shuffle<T>(items: T[]) {
   return shuffled
 }
 
-export default function Relay({ classroom, students, back, openQuestions }: {
-  classroom: Classroom; students: Student[]; back: () => void; openQuestions: () => void
+export default function Relay({ classroom, students, back, openQuestions, onMatchChange }: {
+  classroom: Classroom; students: Student[]; back: () => void; openQuestions: () => void; onMatchChange: (active: boolean) => void
 }) {
   const [names, setNames] = useState(['Đội 1', 'Đội 2'])
   const [assignments, setAssignments] = useState<Record<string, number>>({})
@@ -35,6 +35,12 @@ export default function Relay({ classroom, students, back, openQuestions }: {
   const roundCount = rounds ?? Math.max(1, ...teams.map((team) => team.members.length))
   const canStart = students.length >= 2 && Number.isSafeInteger(roundCount * teamCount) && Number.isInteger(roundCount)
     && roundCount > 0 && teams.every((team) => team.name && team.members.length) && !!bank?.length
+  const matchActive = !!match
+
+  useEffect(() => {
+    onMatchChange(matchActive)
+    return () => onMatchChange(false)
+  }, [matchActive, onMatchChange])
 
   useEffect(() => {
     let current = true

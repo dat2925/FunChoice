@@ -3,18 +3,34 @@ import { isTauri } from '@tauri-apps/api/core'
 import { check, type Update } from '@tauri-apps/plugin-updater'
 import { Download } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
-export default function UpdatePanel({ blocked }: { blocked: boolean }) {
+const noticeKeyPrefix = 'funchoice.update.notified.'
+
+export default function UpdatePanel({ blocked, slot }: { blocked: boolean; slot: HTMLDivElement | null }) {
   const [version, setVersion] = useState('')
   const [available, setAvailable] = useState<Update>()
   const [checking, setChecking] = useState(false)
   const [installing, setInstalling] = useState(false)
   const [percent, setPercent] = useState<number>()
   const [message, setMessage] = useState('')
+  const [noticeVersion, setNoticeVersion] = useState<string>()
   const dialog = useRef<HTMLDialogElement>(null)
   const inFlight = useRef(false)
   const mounted = useRef(false)
   const latest = useRef<Update | undefined>(undefined)
+  const notified = useRef(new Set<string>())
+
+  function announce(updateVersion: string) {
+    if (notified.current.has(updateVersion)) return
+    notified.current.add(updateVersion)
+    try {
+      const key = noticeKeyPrefix + updateVersion
+      if (localStorage.getItem(key)) return
+      localStorage.setItem(key, '1')
+    } catch { /* Keep the in-memory record if storage is unavailable. */ }
+    if (!dialog.current?.open) setNoticeVersion(updateVersion)
+  }
 
   async function checkLatest(manual: boolean) {
     if (inFlight.current) return
@@ -30,6 +46,8 @@ export default function UpdatePanel({ blocked }: { blocked: boolean }) {
       void latest.current?.close().catch(() => undefined)
       latest.current = next ?? undefined
       setAvailable(latest.current)
+      if (next) announce(next.version)
+      else setNoticeVersion(undefined)
       if (!next && manual) setMessage('Bạn đang dùng phiên bản mới nhất.')
     } catch {
       if (manual) setMessage('Không kiểm tra được bản mới. Hãy kiểm tra kết nối mạng và thử lại.')
@@ -82,12 +100,30 @@ export default function UpdatePanel({ blocked }: { blocked: boolean }) {
   }
 
   if (!isTauri()) return null
-  return <div className="update-panel">
-    {version && <span>v{version}</span>}
-    <button className={'button ' + (available ? 'soft' : 'secondary')} onClick={() => {
-      dialog.current?.showModal()
-      if (!available) void checkLatest(true)
-    }}><Download size={15} aria-hidden="true"/>{available ? 'Có bản ' + available.version : 'Kiểm tra cập nhật'}</button>
+  return <>
+    {slot && createPortal(<div className="update-panel">
+      {version && <span>v{version}</span>}
+      <button className={'button ' + (available ? 'soft' : 'secondary')} onClick={() => {
+        setNoticeVersion(undefined)
+        dialog.current?.showModal()
+        if (!available) void checkLatest(true)
+      }}><Download size={15} aria-hidden="true"/>{available ? 'Có bản ' + available.version : 'Kiểm tra cập nhật'}</button>
+    </div>, slot)}
+    {available && noticeVersion === available.version && <aside className="update-notice" aria-label="Thông báo cập nhật">
+      <Download size={20} aria-hidden="true"/>
+      <div className="update-notice-content">
+        <p role="status"><strong>FunChoice có bản cập nhật mới</strong><br/>Phiên bản {available.version} đã sẵn sàng.</p>
+        {blocked && <p className="muted">Hoàn tất lượt chơi hoặc thao tác đang mở để cập nhật.</p>}
+        <div className="toolbar-actions">
+          <button className="button primary" disabled={blocked || checking || installing} onClick={() => {
+            setNoticeVersion(undefined)
+            dialog.current?.showModal()
+            void install()
+          }}>Cập nhật ngay</button>
+          <button className="button secondary" onClick={() => setNoticeVersion(undefined)}>Để sau</button>
+        </div>
+      </div>
+    </aside>}
     <dialog className="update-dialog panel" ref={dialog} aria-labelledby="update-title"
       onCancel={(event) => { if (installing) event.preventDefault() }}>
       <h2 id="update-title">{available ? 'FunChoice ' + available.version : 'Cập nhật FunChoice'}</h2>
@@ -102,5 +138,5 @@ export default function UpdatePanel({ blocked }: { blocked: boolean }) {
           : <button className="button primary" disabled={checking} onClick={() => void checkLatest(true)}>Kiểm tra lại</button>}
       </div>
     </dialog>
-  </div>
+  </>
 }
