@@ -1,9 +1,11 @@
 import argparse
 import base64
 import os
-import secrets
+import re
+import sqlite3
 import sys
 import tkinter as tk
+from contextlib import closing
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from tkinter import filedialog, ttk
@@ -20,7 +22,10 @@ INK = "#261c3e"
 ACCENT = "#6244c4"
 
 
-def issue(private_file, end_date=None):
+def issue(private_file, machine, end_date=None):
+    machine = machine.strip().upper()
+    if not re.fullmatch(r"FC-[0-9A-F]{32}", machine):
+        raise ValueError("Dán mã máy FC- mà người dùng sao chép từ FunChoice.")
     until = "forever"
     if end_date is not None:
         if end_date < datetime.now(VIETNAM).date():
@@ -38,10 +43,20 @@ def issue(private_file, end_date=None):
     public = key.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
     if public.hex() != PUBLIC.read_text(encoding="ascii").strip():
         raise ValueError("Khóa ký đã chọn không khớp với bộ cài FunChoice.")
-    serial = secrets.token_hex(16)
-    payload = f"FunChoice:Pro:v2:{until}:{serial}".encode("ascii")
+    ledger = Path(os.environ.get("FUNCHOICE_LEDGER_PATH", DEFAULT_PRIVATE.with_name("issued-machines.sqlite")))
+    ledger.parent.mkdir(parents=True, exist_ok=True)
+    with closing(sqlite3.connect(ledger)) as db, db:
+        db.execute("CREATE TABLE IF NOT EXISTS licenses (machine TEXT PRIMARY KEY, expiry TEXT NOT NULL)")
+        db.execute("BEGIN IMMEDIATE")
+        row = db.execute("SELECT expiry FROM licenses WHERE machine=?", (machine,)).fetchone()
+        if row and (row[0] == "forever" or int(row[0]) > datetime.now(timezone.utc).timestamp()):
+            if row[0] != until:
+                raise ValueError("Máy này đã có key còn hiệu lực. Chọn lại đúng thời hạn cũ để sao chép lại key.")
+        else:
+            db.execute("INSERT INTO licenses VALUES (?,?) ON CONFLICT(machine) DO UPDATE SET expiry=excluded.expiry", (machine, until))
+    payload = f"FunChoice:Pro:v1:{machine}:{until}".encode("ascii")
     signature = base64.urlsafe_b64encode(key.sign(payload)).decode("ascii").rstrip("=")
-    return f"FC-PRO2.{until}.{serial}.{signature}"
+    return f"FC-PRO1.{until}.{signature}"
 
 
 class KeyMaker(tk.Tk):
@@ -49,14 +64,15 @@ class KeyMaker(tk.Tk):
         super().__init__()
         self.title("FunChoice • Tạo key Pro")
         self.configure(bg=BACKGROUND)
-        self.minsize(560, 530)
-        self.geometry("620x550")
+        self.minsize(560, 580)
+        self.geometry("620x600")
         if (SOURCE / "solotech.ico").is_file():
             self.iconbitmap(str(SOURCE / "solotech.ico"))
         self.private_file = DEFAULT_PRIVATE
         self.mode = tk.StringVar(value="forever")
         self.end = tk.StringVar(value=(datetime.now(VIETNAM).date() + timedelta(days=30)).isoformat())
         self.key = tk.StringVar()
+        self.machine = tk.StringVar()
         self.status = tk.StringVar()
         self.signer = tk.StringVar()
         style = ttk.Style(self)
@@ -74,6 +90,8 @@ class KeyMaker(tk.Tk):
         frame.pack(fill="both", expand=True)
         ttk.Label(frame, text="FunChoice · Tạo key Pro", style="Title.TLabel").pack(anchor="w")
         ttk.Label(frame, text="Sản phẩm của SoloTech", style="Note.TLabel").pack(anchor="w", pady=(0, 20))
+        ttk.Label(frame, text="Mã máy của người dùng").pack(anchor="w", pady=(0, 4))
+        ttk.Entry(frame, textvariable=self.machine).pack(fill="x", pady=(0, 12))
         for text, value in [("Vĩnh viễn", "forever"), ("Có thời hạn", "dated")]:
             ttk.Radiobutton(frame, text=text, value=value, variable=self.mode, command=self.sync_date).pack(anchor="w", pady=2)
         row = ttk.Frame(frame)
@@ -124,7 +142,7 @@ class KeyMaker(tk.Tk):
                         raise ValueError()
                 except ValueError as exc:
                     raise ValueError("Nhập ngày hết hạn theo dạng YYYY-MM-DD.") from exc
-            self.key.set(issue(self.private_file, end_date))
+            self.key.set(issue(self.private_file, self.machine.get(), end_date))
         except (ValueError, OSError) as exc:
             self.status.set(str(exc))
             return
@@ -142,8 +160,11 @@ class KeyMaker(tk.Tk):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--issue", metavar="forever|YYYY-MM-DD")
+    parser.add_argument("--machine", metavar="FC-MÃ-MÁY")
     args = parser.parse_args()
     if args.issue:
-        print(issue(DEFAULT_PRIVATE, None if args.issue == "forever" else date.fromisoformat(args.issue)))
+        if not args.machine:
+            parser.error("--issue yêu cầu --machine")
+        print(issue(DEFAULT_PRIVATE, args.machine, None if args.issue == "forever" else date.fromisoformat(args.issue)))
     else:
         KeyMaker().mainloop()

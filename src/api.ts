@@ -18,7 +18,10 @@ export const modes = {
   cycle: { label: 'Không lặp', info: 'Chọn hết vòng hiện tại trước khi mở vòng mới. Nếu một lượt đi qua ranh giới hai vòng, học sinh đã trúng trong lượt đó được bỏ qua ở vòng mới.' },
   weighted: { label: 'Ưu tiên ít được chọn', info: 'Trọng số = 1 / (1 + số lần đã trúng). Mỗi lần rơi lấy mẫu theo trọng số trong số học sinh còn lại.' },
 } as const
-export interface LicenseInfo { pro: boolean; expiresAt: number | null; freeClasses: number; freeStudents: number }
+export interface LicenseInfo {
+  pro: boolean; machineCode: string | null; needsMachineKey: boolean
+  expiresAt: number | null; freeClasses: number; freeStudents: number
+}
 export const musicTracks = { suspense: 'Gay cấn', adventure: 'Phiêu lưu', arcade: 'Arcade', mp3: 'MP3 của bạn' } as const
 export const meteorStyles = { straight: 'Rơi thẳng', curve: 'Đổi hướng', mixed: 'Hỗn hợp' } as const
 export interface Settings {

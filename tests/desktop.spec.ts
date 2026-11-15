@@ -1,5 +1,5 @@
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test'
-import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
+import { execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { mkdtemp, rm, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
@@ -9,6 +9,12 @@ import { once } from 'node:events'
 let browser: Browser | undefined
 let app: ChildProcess | undefined
 let data: string
+
+function issue(machine: string, expiry = 'forever') {
+  return execFileSync('python', ['scripts/funchoice-keygen.py', '--issue', expiry, '--machine', machine], {
+    encoding: 'utf8', env: { ...process.env, FUNCHOICE_LEDGER_PATH: resolve(data, 'issued-machines.sqlite') },
+  }).trim()
+}
 
 async function close() {
   if (app && app.exitCode === null) {
@@ -89,29 +95,59 @@ test('Windows: nhập Excel, chơi với 99 học sinh, mở lại giữa lượ
   await page.getByRole('button', { name: 'Nhập key Pro' }).click()
   await expect(page.getByRole('dialog')).toContainText('0944228546')
   await expect(page.getByRole('dialog')).toContainText('solotechvn.official@gmail.com')
-  await expect(page.getByLabel('Mã máy')).toHaveCount(0)
-  await page.getByLabel('Key Pro', { exact: true }).fill('FC-PRO2.invalid')
+  const machine = await page.getByLabel('Mã máy').inputValue()
+  expect(machine).toMatch(/^FC-[0-9A-F]{32}$/)
+  const wrongMachine = machine.slice(0, -1) + (machine.endsWith('0') ? '1' : '0')
+  await page.getByLabel('Key Pro', { exact: true }).fill(issue(wrongMachine))
   await page.getByRole('button', { name: 'Kích hoạt Pro' }).click()
   await expect(page.getByRole('dialog').getByRole('alert')).toContainText('Key không hợp lệ')
-  const issue = (expiry: string) => execFileSync('python',
-    ['scripts/funchoice-keygen.py', '--issue', expiry], { encoding: 'utf8' }).trim()
   const expiry = new Date(Date.now() + 86400000 * 7).toISOString().slice(0, 10)
-  await page.getByLabel('Key Pro', { exact: true }).fill(issue(expiry))
+  const timedKey = issue(machine, expiry)
+  expect(issue(machine, expiry)).toBe(timedKey)
+  const duplicate = spawnSync('python', ['scripts/funchoice-keygen.py', '--issue', 'forever', '--machine', machine], {
+    encoding: 'utf8', env: { ...process.env, PYTHONIOENCODING: 'utf-8', FUNCHOICE_LEDGER_PATH: resolve(data, 'issued-machines.sqlite') },
+  })
+  expect(duplicate.status).toBe(1)
+  expect(duplicate.stderr).toContain('đã có key còn hiệu lực')
+  await page.getByLabel('Key Pro', { exact: true }).fill(timedKey)
   await page.getByRole('button', { name: 'Kích hoạt Pro' }).click()
   const proStatus = page.locator('.license-status')
   const [year, month, day] = expiry.split('-')
   await expect(proStatus).toContainText('Đến hết ' + day + '/' + month + '/' + year)
   await expect(page.getByRole('button', { name: /FunChoice Pro|Nhập key Pro/ })).toHaveCount(0)
   await expect(page.getByRole('dialog')).toHaveCount(0)
-  await command('activate_pro', { key: issue('forever') })
   await page.reload()
-  await expect(proStatus).toContainText('Vĩnh viễn')
+  await expect(proStatus).toContainText('Đến hết ' + day + '/' + month + '/' + year)
   await page.getByRole('button', { name: 'Xem lớp học' }).click()
   await page.getByRole('article').filter({ hasText: 'Lớp 5A' }).getByRole('button', { name: 'Xem học sinh' }).click()
   await page.locator('input[type=file]').setInputFiles(resolve('tests/roster.xlsx'))
   await expect(page.getByRole('heading', { name: 'Nhập 100 học sinh' })).toBeVisible()
   await page.getByRole('button', { name: 'Nhập danh sách' }).click()
   await expect(page.getByText('99/100 học sinh đang hoạt động', { exact: false })).toBeVisible()
+  await page.getByRole('button', { name: 'Cấu hình trò chơi' }).click()
+  await page.getByRole('button', { name: 'Chọn Tiếp sức đấu đội' }).click()
+  await expect(page.getByRole('button', { name: 'Bắt đầu tiếp sức' })).toBeDisabled()
+  await page.getByRole('button', { name: 'Chuẩn bị câu hỏi' }).click()
+  await page.locator('input[type=file]').setInputFiles(resolve('src/assets/Mau-cau-hoi-FunChoice.xlsx'))
+  await expect(page.locator('.question-bank li')).toHaveCount(16)
+  await page.getByRole('button', { name: 'Cấu hình trò chơi' }).click()
+  await page.getByRole('button', { name: 'Chọn Tiếp sức đấu đội' }).click()
+  await page.getByLabel('Tên đội 1').fill('Đội Sao')
+  await page.getByLabel('Số vòng').fill('1')
+  await page.getByRole('button', { name: 'Chia đều ngẫu nhiên' }).click()
+  await page.getByRole('button', { name: 'Bắt đầu tiếp sức' }).click()
+  const firstRelay = page.getByRole('region', { name: 'Câu hỏi lượt 1' })
+  await expect(firstRelay.getByRole('heading')).toBeVisible()
+  const firstRelayQuestion = await firstRelay.getByRole('heading').textContent()
+  await page.getByRole('button', { name: 'Đúng · +1 điểm' }).click()
+  const secondRelay = page.getByRole('region', { name: 'Câu hỏi lượt 2' })
+  await expect(secondRelay.getByRole('heading')).toBeVisible()
+  expect(await secondRelay.getByRole('heading').textContent()).not.toBe(firstRelayQuestion)
+  await page.getByRole('button', { name: 'Sai / Bỏ qua' }).click()
+  await expect(page.getByRole('heading', { name: 'Đội Sao chiến thắng!' })).toBeVisible()
+  await page.getByRole('button', { name: 'Về cấu hình tiếp sức' }).click()
+  await page.getByRole('button', { name: 'Chọn trò chơi', exact: true }).click()
+  await page.getByRole('button', { name: 'Chi tiết lớp', exact: true }).click()
   const namesakes = page.getByRole('row').filter({ hasText: 'Nguyễn Minh Anh' })
   for (const [index, gender] of ['male', 'female'].entries()) {
     await namesakes.nth(index).getByRole('button', { name: 'Sửa Nguyễn Minh Anh' }).click()
@@ -122,6 +158,8 @@ test('Windows: nhập Excel, chơi với 99 học sinh, mở lại giữa lượ
   await expect(namesakes.nth(0).getByText('Nam', { exact: true })).toBeVisible()
   await expect(namesakes.nth(1).getByText('Nữ', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Cấu hình trò chơi' }).click()
+  await page.getByRole('button', { name: 'Chọn Thiên thạch' }).click()
+  await page.getByLabel('Chế độ chơi').selectOption('only')
   await page.getByLabel('Số học sinh được chọn').fill('5')
   await command('set_background_music', { path: resolve('tests/music.mp3') })
   await page.getByLabel('Nhạc nền').selectOption('mp3')
@@ -198,7 +236,7 @@ test('Windows: nhập Excel, chơi với 99 học sinh, mở lại giữa lượ
   console.log('Nhịp làm tươi WebView2 với 99 nhân vật: ' + fps + ' FPS')
   await page.screenshot({ path: info.outputPath('san-truong.png') })
   await page.waitForFunction(() => document.querySelector('.game-stage')?.getAttribute('data-phase') === 'METEOR_FALLING', null, { timeout: 7000 })
-  await expect.poll(() => audio.evaluate((value) => value.shouts)).toBeGreaterThan(0)
+  expect(await audio.evaluate((value) => value.shouts)).toBe(0)
   await page.waitForTimeout(220)
   await page.screenshot({ path: info.outputPath('thien-thach.png') })
   await page.waitForFunction(() => ['MISS', 'IMPACT'].includes(document.querySelector('.game-stage')?.getAttribute('data-phase') ?? ''), null, { timeout: 7000 })
@@ -212,7 +250,7 @@ test('Windows: nhập Excel, chơi với 99 học sinh, mở lại giữa lượ
   await close()
 
   page = await launch()
-  await expect(page.locator('.license-status')).toContainText('Vĩnh viễn')
+  await expect(page.locator('.license-status')).toContainText('Đến hết ' + day + '/' + month + '/' + year)
   const savedMedia = await page.evaluate(async () => {
     const { invoke } = (window as unknown as { __TAURI_INTERNALS__: {
       invoke: (name: string) => Promise<{ schoolTheme: string; settings: { meteorStyle: string } }>
@@ -258,6 +296,7 @@ test('Windows: nhập Excel, chơi với 99 học sinh, mở lại giữa lượ
   await page.getByRole('button', { name: 'Xem lớp học' }).click()
   await page.getByRole('article').filter({ hasText: 'Lớp 5A' }).getByRole('button', { name: 'Xem học sinh' }).click()
   await page.getByRole('button', { name: 'Cấu hình trò chơi' }).click()
+  await page.getByRole('button', { name: 'Chọn Thiên thạch' }).click()
   await expect(page.getByLabel('Nhạc nền')).toHaveValue('mp3')
   await page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('button', { name: 'Trường học', exact: true }).click()
   await page.getByRole('button', { name: 'Sửa Trường THPT Nguyễn Trãi' }).click()
@@ -270,9 +309,8 @@ test('Windows: nhập Excel, chơi với 99 học sinh, mở lại giữa lượ
 test('Windows: câu hỏi theo lượt, tiếp tục sau khi mở lại và chọn lặp', async ({}, info) => {
   data = await mkdtemp(resolve(tmpdir(), 'solotech-questions-'))
   let page = await launch()
-  const key = execFileSync('python', ['scripts/funchoice-keygen.py', '--issue', 'forever'], { encoding: 'utf8' }).trim()
   await page.getByRole('button', { name: 'Nhập key Pro' }).click()
-  await page.getByLabel('Key Pro', { exact: true }).fill(key)
+  await page.getByLabel('Key Pro', { exact: true }).fill(issue(await page.getByLabel('Mã máy').inputValue()))
   await page.getByRole('button', { name: 'Kích hoạt Pro' }).click()
   await expect(page.locator('.license-status')).toContainText('Vĩnh viễn')
   await page.getByRole('button', { name: 'Thêm trường', exact: true }).first().click()
@@ -305,6 +343,7 @@ test('Windows: câu hỏi theo lượt, tiếp tục sau khi mở lại và ch�
   await page.getByLabel('Lượt 1', { exact: true }).selectOption({ label: '2 + 3 bằng bao nhiêu?' })
   await expect(page.getByLabel('Lượt 2', { exact: true })).toHaveValue('')
   await page.getByRole('button', { name: 'Cấu hình trò chơi' }).click()
+  await page.getByRole('button', { name: 'Chọn Thiên thạch' }).click()
   await page.getByLabel('Cho phép chọn lại học sinh').check()
   await page.getByLabel('Chạy trước lần rơi đầu').selectOption('0')
   await page.getByLabel('Tốc độ trò chơi').selectOption('2')

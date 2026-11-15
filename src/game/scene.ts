@@ -6,7 +6,6 @@ import { drawTime, fallDuration, slowMotionScale, Round, type Phase } from './ro
 import { fieldWidth, schoolSign, schoolyards } from './yard'
 import { meteorPosition, shouldCurveMeteor, type MeteorPath } from './meteor'
 import { SuspenseMusic } from './music'
-import helpShout from './help-shout.wav?inline'
 
 const conversations = [
   ['Chơi đuổi bắt không?', 'Chơi luôn!'],
@@ -41,7 +40,6 @@ export class Yard extends Phaser.Scene {
   private targetActor?: Actor
   private drawRequested = false
   private audio?: AudioContext
-  private shout?: AudioBuffer
   private speech: { text: Phaser.GameObjects.Text; actor?: Actor; until: number }[] = []
 
   constructor(private roster: Student[], private session: Session, private eventsOut: SceneEvents, audio?: AudioContext) {
@@ -101,11 +99,6 @@ export class Yard extends Phaser.Scene {
       }).setDepth(2005).setOrigin(0.5, 1).setResolution(2).setVisible(false),
       until: 0,
     }))
-    if (this.audio) {
-      const encoded = helpShout.slice(helpShout.indexOf(',') + 1)
-      const bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0))
-      void this.audio.decodeAudioData(bytes.buffer).then((buffer) => { this.shout = buffer }).catch(() => undefined)
-    }
     const placed: {x: number; y: number}[] = []
     const revealed = this.session.results.filter((result) => result.selectedAt)
     const picked = new Set(revealed.map((result) => result.studentId))
@@ -196,21 +189,6 @@ export class Yard extends Phaser.Scene {
     })
   }
 
-  private cryForHelp() {
-    const audio = this.audio
-    if (!audio || audio.state !== 'running' || !this.shout) return
-    for (const [delay, pitch] of [[0, 1.1], [0.33, 0.92]]) {
-      const source = audio.createBufferSource()
-      const gain = audio.createGain()
-      source.buffer = this.shout
-      source.playbackRate.value = pitch
-      gain.gain.value = 0.62
-      source.connect(gain).connect(audio.destination)
-      source.onended = () => { source.disconnect(); gain.disconnect() }
-      source.start(audio.currentTime + delay)
-    }
-  }
-
   private aimMeteor(endX: number, endY: number) {
     const curved = shouldCurveMeteor(this.session.settings.meteorStyle)
     const direction = endX < 280 ? 1 : endX > fieldWidth - 280 ? -1 : Phaser.Math.Between(0, 1) ? 1 : -1
@@ -251,7 +229,6 @@ export class Yard extends Phaser.Scene {
           Phaser.Utils.Array.Shuffle(runners).slice(0, 2).forEach((actor, index) => this.say(index, actor, calls[index], 1220))
         }
         this.tone(500, 820, 0.35, 0.045, 'triangle')
-        this.cryForHelp()
         break
       case 'METEOR_FALLING':
         for (const actor of this.actors) if (actor.state === 'Panic') actor.state = 'ScaredRun'

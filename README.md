@@ -4,9 +4,9 @@
 
 ## Sử dụng
 
-1. Tải [bộ cài FunChoice 1.2.16 cho Windows x64](https://github.com/dat2925/FunChoice/releases/download/v1.2.16/FunChoice-1.2.16-x64-setup.exe), chạy bộ cài, rồi mở ứng dụng từ menu Start.
+1. Chạy bộ cài `FunChoice-1.2.20-x64-setup.exe`, rồi mở ứng dụng từ menu Start. Các bản đã đăng có trong [GitHub Releases](https://github.com/dat2925/FunChoice/releases).
 2. Thêm trường và lớp. Trong lớp, thêm từng học sinh hoặc chọn **Nhập Excel / CSV**.
-3. Mở **Cấu hình trò chơi**, chọn số học sinh, chế độ và hiệu ứng, rồi chọn **Bắt đầu trò chơi**. Dùng **Toàn màn hình** để sân chơi phủ kín màn hình. Nhấn **Esc** để hiện lại các nút điều khiển.
+3. Mở **Cấu hình trò chơi** và chọn **Thiên thạch** hoặc **Tiếp sức đấu đội**. Với Thiên thạch, chọn số học sinh, chế độ và hiệu ứng, rồi chọn **Bắt đầu trò chơi**. Dùng **Toàn màn hình** để sân chơi phủ kín màn hình. Nhấn **Esc** để hiện lại các nút điều khiển.
 4. Sau lượt chơi, sao chép hoặc xuất kết quả CSV. Mục **Lịch sử chọn** lưu thứ tự công bố, thời gian, chế độ, trường và lớp.
 5. Nếu đóng ứng dụng giữa lượt, chọn **Tiếp tục lượt** khi mở lại. Nút **Kết thúc** lưu các kết quả đã công bố và đóng lượt.
 
@@ -20,7 +20,7 @@ Tệp nhập dùng tiêu đề **Họ và tên** ở dòng đầu, tùy chọn t
 
 Sau cảnh báo của mỗi lần rơi, Rust rút một học sinh theo chế độ đã chọn. Trong **Kiểu rơi thiên thạch**, chọn **Rơi thẳng** để giữ đường lao cũ, **Đổi hướng** để quả cầu lượn sang một bên rồi quay về điểm va chạm, hoặc **Hỗn hợp** để mỗi viên ngẫu nhiên chọn một trong hai quỹ đạo. Kết quả từng lần rơi được lưu vào SQLite. Các hồ sơ từ phiên bản trước hiển thị giới tính “Chưa nhập” cho đến khi giáo viên cập nhật.
 
-Học sinh trò chuyện trên sân, chạy tán loạn khi có cảnh báo, rồi chạy chậm lại lúc thiên thạch lao xuống. Khi bật âm thanh, cảnh báo có tiếng kêu “Cứu với!”. Mỗi lần chọn học sinh có 22% khả năng xuất hiện một cú rơi hụt trước cú rơi trúng. Cú rơi hụt không tính vào kết quả.
+Học sinh trò chuyện bằng chữ trên sân, chạy tán loạn khi có cảnh báo, rồi chạy chậm lại lúc thiên thạch lao xuống. Mỗi lần chọn học sinh có 22% khả năng xuất hiện một cú rơi hụt trước cú rơi trúng. Cú rơi hụt không tính vào kết quả.
 
 Trong chi tiết lớp, mở **Chuẩn bị câu hỏi** để thêm câu thủ công hoặc nhập Excel (.xlsx) hay CSV. Dòng đầu cần có cột **Câu hỏi** và có thể thêm cột **Đáp án**. Chọn câu cho từng lượt hoặc để **Ngẫu nhiên**. Trò chơi ưu tiên các câu chưa gán cho lượt khác trước khi dùng lại câu. Trong **Cấu hình trò chơi**, chọn **Chỉ chọn học sinh** hoặc **Chọn học sinh và hiện câu hỏi**. Ở chế độ câu hỏi, máy quay phóng to học sinh, sau đó câu hỏi hiện lên. Bấm **Hiện đáp án** nếu có, rồi **Tiếp tục** để lưu kết quả và sang lượt kế.
 
@@ -51,11 +51,15 @@ npm run release:windows
 Bài Playwright mở ứng dụng Windows thật và dùng thư mục SQLite riêng. Bộ cài production nằm trong `src-tauri\target\release\bundle\nsis`.
 
 
+## Tiếp sức đấu đội
+
+Trong **Chuẩn bị câu hỏi**, chọn **Tải Excel mẫu**, sau đó nhập tệp hoặc chỉnh nội dung trước khi nhập. Chọn từ 2 đến 6 đội, đặt tên, chọn số vòng và chia học sinh thủ công hoặc chia đều ngẫu nhiên. Mỗi lượt tự hiện một câu từ ngân hàng của lớp. Giáo viên có thể bấm **Hiện đáp án**, sau đó bấm **Đúng · +1 điểm** hoặc **Sai / Bỏ qua** để chấm và chuyển lượt. Bảng tổng kết hiện đội thắng hoặc các đội đồng hạng. Điểm tiếp sức được giữ trong trận đang mở.
+
 ## Miễn phí và Pro
 
 Bản miễn phí cho tạo tối đa 2 lớp trên toàn ứng dụng, thêm tối đa 30 học sinh mỗi lớp, chọn 1 học sinh mỗi lượt và dùng nhạc nền Gay cấn. Các giới hạn số lớp, số học sinh và số người được chọn được gỡ sau khi kích hoạt Pro. Pro có thêm nhạc nền Phiêu lưu, Arcade và MP3. Trong cấu hình, chọn **Chọn tệp MP3…** để lưu một bản sao nhạc nền (tối đa 50 MB). Bản sao được giữ sau khi đóng ứng dụng.
 
-Liên hệ SoloTech qua Zalo **0944228546** hoặc email **solotechvn.official@gmail.com** để nhận key. Mở **Nhập key Pro** để dán key. Key mới dùng được trên nhiều máy. FunChoice hỗ trợ key vĩnh viễn và key dùng đến hết ngày theo giờ Việt Nam. Sau khi hết hạn, dữ liệu hiện có vẫn dùng được và các lượt đã bắt đầu có thể hoàn tất. Các lượt mới và thao tác thêm dữ liệu áp dụng giới hạn miễn phí. [Hướng dẫn cấp key dành cho SoloTech](scripts/README.md).
+Mở **Nhập key Pro**, sao chép **Mã máy** và gửi cho SoloTech qua Zalo **0944228546** hoặc email **solotechvn.official@gmail.com**. Dán key được cấp vào cùng cửa sổ. Key chỉ dùng trên máy có mã tương ứng, với lựa chọn vĩnh viễn hoặc dùng đến hết ngày theo giờ Việt Nam. Nếu đang dùng key chia sẻ cũ `FC-PRO2`, hãy gửi mã máy để được cấp lại. Sau khi hết hạn, dữ liệu hiện có vẫn dùng được và các lượt đã bắt đầu có thể hoàn tất. [Hướng dẫn cấp key dành cho SoloTech](scripts/README.md).
 
 
 Khi thêm hoặc sửa trường, chọn **Nền sân trường** để dùng cảnh Nông thôn, Thành phố hoặc Miền núi. Lựa chọn được lưu riêng cho từng trường và áp dụng cho các lớp thuộc trường đó. Các trường từ phiên bản trước mặc định dùng cảnh Nông thôn.

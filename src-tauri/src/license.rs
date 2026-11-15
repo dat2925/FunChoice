@@ -12,6 +12,8 @@ pub const FREE_STUDENTS: usize = 30;
 #[serde(rename_all = "camelCase")]
 pub struct LicenseInfo {
     pub pro: bool,
+    pub machine_code: Option<String>,
+    pub needs_machine_key: bool,
     pub expires_at: Option<u64>,
     pub free_classes: usize,
     pub free_students: usize,
@@ -21,6 +23,7 @@ pub struct License {
     machine: Option<String>,
     file: PathBuf,
     grant: Option<Grant>,
+    needs_machine_key: bool,
 }
 
 fn machine_code() -> Option<String> {
@@ -73,17 +76,10 @@ fn verify(key: &str, machine: Option<&str>, public: &VerifyingKey) -> Option<Gra
     } else {
         Some(expiry.parse().ok()?)
     };
-    let message = match version {
-        "FC-PRO2" => {
-            let serial = parts.next()?;
-            if serial.len() != 32 || !serial.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-                return None;
-            }
-            format!("FunChoice:Pro:v2:{expiry}:{serial}")
-        }
-        "FC-PRO1" => format!("FunChoice:Pro:v1:{}:{expiry}", machine?),
-        _ => return None,
-    };
+    if version != "FC-PRO1" {
+        return None;
+    }
+    let message = format!("FunChoice:Pro:v1:{}:{expiry}", machine?);
     let encoded = parts.next()?;
     if encoded.len() != 86 || parts.next().is_some() {
         return None;
@@ -104,13 +100,16 @@ impl License {
     pub fn load(dir: &Path) -> Self {
         let machine = machine_code();
         let file = dir.join("funchoice-pro.key");
-        let grant = std::fs::read_to_string(&file)
-            .ok()
+        let saved = std::fs::read_to_string(&file).ok();
+        let grant = saved
+            .as_deref()
             .and_then(|key| verify(key.trim(), machine.as_deref(), &public_key()));
+        let needs_machine_key = saved.is_some_and(|key| key.trim().starts_with("FC-PRO2."));
         Self {
             machine,
             file,
             grant,
+            needs_machine_key,
         }
     }
 
@@ -121,6 +120,8 @@ impl License {
     pub fn info(&self) -> LicenseInfo {
         LicenseInfo {
             pro: self.pro(),
+            machine_code: self.machine.clone(),
+            needs_machine_key: self.needs_machine_key,
             expires_at: self.grant.and_then(|grant| grant.expires_at),
             free_classes: FREE_CLASSES,
             free_students: FREE_STUDENTS,
@@ -130,10 +131,25 @@ impl License {
     pub fn activate(&mut self, key: &str) -> Result<LicenseInfo> {
         use std::io::Write;
         let key = key.trim();
-        let grant = verify(key, self.machine.as_deref(), &public_key())
-            .ok_or("Key không hợp lệ. Hãy kiểm tra lại key do SoloTech cấp.")?;
+        if key.starts_with("FC-PRO2.") {
+            return Err(
+                "Key dùng chung đã ngừng hỗ trợ. Gửi mã máy cho SoloTech để nhận key riêng.".into(),
+            );
+        }
+        let grant = verify(key, self.machine.as_deref(), &public_key()).ok_or(
+            "Key không hợp lệ hoặc được cấp cho máy khác. Hãy kiểm tra lại key do SoloTech cấp.",
+        )?;
         if !grant.active(now()) {
             return Err("Key Pro này đã hết hạn.".into());
+        }
+        if self.pro() {
+            if self
+                .grant
+                .is_some_and(|current| current.expires_at == grant.expires_at)
+            {
+                return Ok(self.info());
+            }
+            return Err("Máy này đã có key Pro còn hiệu lực.".into());
         }
         let parent = self
             .file
@@ -146,6 +162,7 @@ impl License {
         temp.persist(&self.file)
             .map_err(|_| "Không thể lưu key Pro.")?;
         self.grant = Some(grant);
+        self.needs_machine_key = false;
         Ok(self.info())
     }
 }
@@ -155,7 +172,7 @@ mod tests {
     use super::*;
     use ed25519_dalek::{Signer, SigningKey};
     #[test]
-    fn portable_key_validates_on_any_machine_and_rejects_changes() {
+    fn previously_signed_portable_keys_are_rejected() {
         let issuer = SigningKey::from_bytes(&[1; 32]);
         let serial = "00112233445566778899aabbccddeeff";
         let signed = |expiry| {
@@ -165,27 +182,10 @@ mod tests {
                 URL_SAFE_NO_PAD.encode(signature.to_bytes())
             )
         };
-        let timed = signed("200");
-        for machine in [None, Some("FC-A"), Some("FC-B")] {
-            let grant = verify(&timed, machine, &issuer.verifying_key()).unwrap();
-            assert!(grant.active(199));
-            assert!(!grant.active(200));
-            assert!(verify(&signed("forever"), machine, &issuer.verifying_key())
-                .unwrap()
-                .active(u64::MAX));
+        for machine in [None, Some("FC-A")] {
+            assert!(verify(&signed("forever"), machine, &issuer.verifying_key()).is_none());
+            assert!(verify(&signed("200"), machine, &issuer.verifying_key()).is_none());
         }
-        assert!(verify(
-            &timed.replace(".200.", ".300."),
-            None,
-            &issuer.verifying_key()
-        )
-        .is_none());
-        assert!(verify(
-            &timed.replace(serial, "ffffffffffffffffffffffffffffffff"),
-            None,
-            &issuer.verifying_key()
-        )
-        .is_none());
     }
 
     #[test]

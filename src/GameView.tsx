@@ -1,10 +1,11 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, Check, Copy, Download, Maximize, Play, Sparkles, Trophy, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Copy, Download, Maximize, Play, Sparkles, Trophy, X } from 'lucide-react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { isTauri } from '@tauri-apps/api/core'
-import { api, modes, optionLetters, type Session, type Student } from './api'
+import { api, modes, type Session, type Student } from './api'
 import { errorText } from './Modal'
 import ProductBrand from './ProductBrand'
+import QuestionCard from './QuestionCard'
 import { exportCsv } from './roster'
 import type { Phase } from './game/round'
 
@@ -58,8 +59,6 @@ export default function GameView({ initial, students, audio, mp3, paused, finish
   const [phase, setPhase] = useState<Phase>('READY')
   const [currentOrder, setCurrentOrder] = useState(0)
   const [questionTurn, setQuestionTurn] = useState<{ order: number; studentId: string; advance: () => void }>()
-  const [showAnswer, setShowAnswer] = useState(false)
-  const [selectedOptions, setSelectedOptions] = useState<number[]>([])
   const [countdown, setCountdown] = useState<number>()
   const [error, setError] = useState('')
   const finishRef = useRef(finish)
@@ -73,8 +72,6 @@ export default function GameView({ initial, students, audio, mp3, paused, finish
       setProgress(latest.current.results.filter((row) => row.selectedAt))
     },
     question(order: number, studentId: string, advance: () => void) {
-      setShowAnswer(false)
-      setSelectedOptions([])
       setQuestionTurn({ order, studentId, advance })
     },
     done() { finishRef.current(latest.current) },
@@ -142,8 +139,6 @@ export default function GameView({ initial, students, audio, mp3, paused, finish
   }, [audio, paused])
   const latestPick = progress.at(-1)
   const question = questionTurn && initial.settings.questions[questionTurn.order - 1]
-  const correct = question?.correctOptions ?? []
-  const hasAnswer = !!question?.answer || correct.length > 0
   return <main className={presenting ? "play-screen presenting" : "play-screen"}>
     <header className="play-header">
       <div className="play-title"><strong>{initial.schoolName}</strong><small>{initial.classroomName}</small></div>
@@ -156,27 +151,12 @@ export default function GameView({ initial, students, audio, mp3, paused, finish
       <div className={'phase-chip ' + (phase === 'METEOR_WARNING' || phase === 'METEOR_FALLING' ? 'hot' : '')}><Sparkles size={15}/>{messages[phase]}</div>
       {phase === 'COUNTDOWN' && countdown && <div className="countdown" key={countdown}>{countdown}</div>}
       {phase === 'REVEAL' && !initial.settings.withQuestions && latestPick?.selectionOrder === currentOrder && latestPick && <div className="reveal-card" key={latestPick.selectionOrder}><Sparkles size={22}/><div><small>LẦN RƠI {latestPick.selectionOrder}</small><strong>{latestPick.fullName}{latestPick.studentCode && <span> · {latestPick.studentCode}</span>}</strong></div></div>}
-      {questionTurn && question && <section className="reveal-card question-card" aria-label={'Câu hỏi lượt ' + questionTurn.order}>
-        <small>Lượt {questionTurn.order} · {students.find((student) => student.id === questionTurn.studentId)?.fullName}</small>
-        <h2>{question.text}</h2>
-        {!!question.options?.length && <div className="question-options" role="group" aria-label="Các phương án">
-          {question.options.map((option, index) => {
-            const selected = selectedOptions.includes(index)
-            const isCorrect = showAnswer && correct.includes(index)
-            return <button key={index} className={'question-option' + (isCorrect ? ' correct' : '')} aria-pressed={selected}
-              disabled={showAnswer} onClick={() => setSelectedOptions(
-                selected ? selectedOptions.filter((i) => i !== index) : correct.length > 1 ? [...selectedOptions, index] : [index],
-              )}>
-              <span>{optionLetters[index]}</span>{option}{isCorrect && <span className="option-correct-label">Đúng</span>}
-            </button>
-          })}
-        </div>}
-        {showAnswer && question.answer && <p className="question-answer"><strong>Đáp án</strong>{question.answer}</p>}
-        <div className="toolbar-actions">
-          {hasAnswer && <button className="button secondary" onClick={() => setShowAnswer(!showAnswer)}>{showAnswer ? 'Ẩn đáp án' : 'Hiện đáp án'}</button>}
-          <button className="button primary" onClick={() => { questionTurn.advance(); setQuestionTurn(undefined) }}>{questionTurn.order === initial.targetCount ? 'Xem kết quả' : 'Tiếp tục'}</button>
-        </div>
-      </section>}
+      {questionTurn && question && <QuestionCard key={questionTurn.order} className="meteor-question" question={question}
+        turn={questionTurn.order} person={students.find((student) => student.id === questionTurn.studentId)?.fullName}
+        actions={<button className="button primary" onClick={() => { questionTurn.advance(); setQuestionTurn(undefined) }}>
+          {questionTurn.order === initial.targetCount ? 'Xem kết quả' : 'Tiếp tục'}<ArrowRight size={17} aria-hidden="true"/>
+        </button>}
+      />}
       {presenting && <button className="button exit-presentation" onClick={() => void presentation(false)} aria-label="Thoát toàn màn hình"><X size={16}/> Esc</button>}
       {error && <div className="game-error" role="alert"><strong>{error}</strong><button className="button primary" onClick={recover}>Tải lại tiến độ</button></div>}
     </div>

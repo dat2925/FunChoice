@@ -7,6 +7,7 @@ import { Empty, Hero, Shell } from './Layout'
 import Modal, { errorText, type DialogSpec } from './Modal'
 import Setup from './Setup'
 import QuestionSetup from './QuestionSetup'
+import Relay from './Relay'
 import SchoolThemePicker from './SchoolThemePicker'
 import GameView, { Results } from './GameView'
 import { asImage, parts } from './game/characters'
@@ -62,7 +63,7 @@ export default function App() {
         } else if (page === 'classrooms' && school) {
           const list = await api.classrooms(school.id)
           if (current) setClassrooms(list)
-        } else if ((page === 'students' || page === 'setup') && classroom) {
+        } else if (['students', 'games', 'setup', 'relay'].includes(page) && classroom) {
           const list = await api.students(classroom.id)
           if (current) setStudents(list)
         } else if (page === 'history') {
@@ -83,10 +84,18 @@ export default function App() {
       const expired = status.expiresAt !== null
       setDialog({
         title: 'FunChoice Pro',
-        description: (expired ? 'Key đã hết hạn. ' : '') + 'Bản miễn phí có tối đa ' + status.freeClasses + ' lớp, ' + status.freeStudents + ' học sinh mỗi lớp, 1 học sinh mỗi lượt và nhạc nền mặc định.',
+        description: (status.needsMachineKey ? 'Key dùng chung đã ngừng hỗ trợ. Gửi mã máy bên dưới cho SoloTech để nhận key riêng. ' : expired ? 'Key đã hết hạn. ' : '') + 'Bản miễn phí có tối đa ' + status.freeClasses + ' lớp, ' + status.freeStudents + ' học sinh mỗi lớp, 1 học sinh mỗi lượt và nhạc nền mặc định.',
         submit: 'Kích hoạt Pro',
         body: <>
-          <label>Key Pro<input name="key" required maxLength={160} placeholder="FC-PRO2.…" autoComplete="off" spellCheck={false}/></label>
+          <label>Mã máy<input value={status.machineCode ?? 'Không đọc được mã máy'} readOnly onFocus={(e) => e.currentTarget.select()}/></label>
+          {status.machineCode && <button type="button" className="button secondary" onClick={async (event) => {
+            const button = event.currentTarget
+            try {
+              await navigator.clipboard.writeText(status.machineCode!)
+              button.textContent = 'Đã sao chép mã máy'
+            } catch { button.textContent = 'Hãy chọn và sao chép mã máy' }
+          }}>Sao chép mã máy</button>}
+          <label>Key Pro<input name="key" required maxLength={160} placeholder="FC-PRO1.…" autoComplete="off" spellCheck={false}/></label>
           <div className="hint pro-contact">
             <strong>Liên hệ SoloTech để nhận key Pro</strong>
             <p>Zalo <span>0944228546</span></p>
@@ -315,7 +324,7 @@ export default function App() {
       case 'students':
         section = <div className="subpage">
           <button className="text-button" onClick={() => navigate('classrooms')}><ArrowLeft size={16}/> Danh sách lớp</button>
-          <div className="page-heading"><div><h1>{classroom?.name}</h1><p>{school?.name} · {active}/{students.length} học sinh đang hoạt động</p></div><div className="toolbar-actions"><button className="button secondary" onClick={() => navigate('questions')}><CircleHelp size={17}/> Chuẩn bị câu hỏi</button><button className="button primary" onClick={() => navigate('setup')} disabled={!active}><Play size={17} fill="currentColor"/> Cấu hình trò chơi</button></div></div>
+          <div className="page-heading"><div><h1>{classroom?.name}</h1><p>{school?.name} · {active}/{students.length} học sinh đang hoạt động</p></div><div className="toolbar-actions"><button className="button secondary" onClick={() => navigate('questions')}><CircleHelp size={17}/> Chuẩn bị câu hỏi</button><button className="button primary" onClick={() => navigate('games')}><Play size={17} fill="currentColor"/> Cấu hình trò chơi</button></div></div>
           <div className="toolbar wrap"><SearchField search={search} setSearch={setSearch} label="Tìm tên hoặc mã học sinh..."/><div className="toolbar-actions">
             <button className="button secondary" onClick={() => file.current?.click()}><FileUp size={16}/> Nhập Excel / CSV</button>
             <input type="file" ref={file} accept=".xlsx,.csv" hidden onChange={(e) => void importFile(e.currentTarget)}/>
@@ -331,11 +340,31 @@ export default function App() {
       case 'questions':
         section = classroom && <QuestionSetup key={classroom.id} classroom={classroom} count={license?.pro ? settings.count : 1}
           changeCount={license?.pro ? (count) => configure({ count }) : undefined}
-          back={() => navigate('students')} setup={active ? () => { configure({ withQuestions: true }); navigate('setup') } : undefined}/>
+          back={() => navigate('students')} setup={active ? () => { configure({ withQuestions: true }); navigate('games') } : undefined}/>
+        break
+      case 'games':
+        section = <div className="subpage">
+          <button className="text-button" onClick={() => navigate('students')}><ArrowLeft size={16}/> Chi tiết lớp</button>
+          <div className="page-heading"><div><h1>Chọn trò chơi</h1><p>{school?.name} · {classroom?.name}</p></div></div>
+          <div className="card-grid">
+            <article className="school-card panel"><span className="school-icon tone-0"><Sparkles size={24}/></span><h3>Thiên thạch</h3>
+              <p>Thiên thạch chọn học sinh. Có thể hiện câu hỏi sau mỗi lượt.</p>
+              <button className="card-link" disabled={!active || !!pending} onClick={() => navigate('setup')}>Chọn Thiên thạch <ArrowRight size={16}/></button>
+            </article>
+            <article className="school-card panel"><span className="school-icon tone-1"><Users size={24}/></span><h3>Tiếp sức đấu đội</h3>
+              <p>{active >= 2 ? 'Chia nhóm, luân phiên cử thành viên trả lời và ghi điểm cho đội.' : 'Cần ít nhất 2 học sinh đang hoạt động.'}</p>
+              <button className="card-link" disabled={active < 2 || !!pending} onClick={() => navigate('relay')}>Chọn Tiếp sức đấu đội <ArrowRight size={16}/></button>
+            </article>
+          </div>
+        </div>
+        break
+      case 'relay':
+        section = classroom && <Relay key={classroom.id} classroom={classroom} students={students.filter((student) => student.isActive)}
+          back={() => navigate('games')} openQuestions={() => navigate('questions')}/>
         break
       case 'setup':
         section = <Setup active={active} total={students.length} school={school?.name ?? ''} classroom={classroom?.name ?? ''} settings={settings}
-          setSettings={configure} start={() => void play()} back={() => navigate('students')} openQuestions={() => navigate('questions')} busy={busy} pro={license?.pro} upgrade={() => void proDialog()}/>
+          setSettings={configure} start={() => void play()} back={() => navigate('games')} openQuestions={() => navigate('questions')} busy={busy} pro={license?.pro} upgrade={() => void proDialog()}/>
         break
       case 'history':
         section = <div className="subpage">

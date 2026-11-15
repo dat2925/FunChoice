@@ -27,7 +27,7 @@ export default function Setup({ active, total, school, classroom, settings, setS
   const maximum = pro && settings.repeatStudents && active ? undefined : pro ? active : Math.min(active, 1)
   const count = pro ? settings.count : 1
   return <div className="subpage">
-    <button className="text-button" onClick={back}><ArrowLeft size={16}/> Danh sách học sinh</button>
+    <button className="text-button" onClick={back}><ArrowLeft size={16}/> Chọn trò chơi</button>
     <div className="page-heading"><div><h1>Cấu hình trò chơi</h1><p>{school} · {classroom}</p></div></div>
     <div className="setup-grid">
       <div className="panel setup-panel">

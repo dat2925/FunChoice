@@ -2,7 +2,8 @@ import { ArrowLeft, ArrowRight, Download, FileUp, Plus, Trash2 } from 'lucide-re
 import { useEffect, useRef, useState } from 'react'
 import { api, optionLetters, type Classroom, type QuestionPlan } from './api'
 import { errorText } from './Modal'
-import { exportCsv, readQuestions } from './roster'
+import { readQuestions } from './roster'
+import sampleQuestions from './assets/Mau-cau-hoi-FunChoice.xlsx?url'
 
 const pageSize = 12
 
@@ -72,11 +73,7 @@ export default function QuestionSetup({ classroom, count, changeCount, back, set
         <div className="toolbar-actions">
           <button className="button secondary" onClick={() => file.current?.click()} disabled={busy}><FileUp size={16}/> Nhập Excel / CSV</button>
           <input ref={file} type="file" accept=".xlsx,.csv" hidden onChange={(e) => void importFile(e.currentTarget)}/>
-          <button className="button secondary" onClick={() => exportCsv('mau-cau-hoi.csv', [
-            ['Câu hỏi', 'Đáp án', 'A', 'B', 'C', 'D', 'Đáp án đúng'],
-            ['2 + 3 bằng bao nhiêu?', '', '4', '5', '6', '', 'B'],
-            ['Hãy kể về một cuốn sách em thích.', '', '', '', '', '', ''],
-          ])}><Download size={16}/> Tải tệp mẫu</button>
+          <a className="button secondary" href={sampleQuestions} download="Mau-cau-hoi-FunChoice.xlsx"><Download size={16}/> Tải Excel mẫu</a>
         </div>
         <form className="question-editor" onSubmit={async (e) => {
           e.preventDefault()

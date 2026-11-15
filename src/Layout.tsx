@@ -48,13 +48,14 @@ export function Hero({ title, description, button, onAction }: { title: ReactNod
 
 const labels: Record<Page, string> = {
   schools: 'Trường học', classrooms: 'Lớp học', students: 'Học sinh',
-  questions: 'Chuẩn bị câu hỏi', setup: 'Cấu hình trò chơi', history: 'Lịch sử chọn', backup: 'Sao lưu dữ liệu',
+  questions: 'Chuẩn bị câu hỏi', games: 'Chọn trò chơi', setup: 'Thiên thạch', relay: 'Tiếp sức đấu đội',
+  history: 'Lịch sử chọn', backup: 'Sao lưu dữ liệu',
 }
 export function Shell({ page, school, classroom, navigate, help, proStatus, upgrade, children }: {
   page: Page; school: School | null; classroom: Classroom | null
   navigate: (page: Page) => void; help: () => void; proStatus?: string; upgrade: () => void; children: ReactNode
 }) {
-  const schoolArea = ['schools', 'classrooms', 'students', 'questions', 'setup'].includes(page)
+  const schoolArea = ['schools', 'classrooms', 'students', 'questions', 'games', 'setup', 'relay'].includes(page)
   return <div className="shell">
     <aside className="sidebar">
       <button className="brand" onClick={() => navigate('schools')} aria-label="FunChoice, về trang trường học">
@@ -78,7 +79,7 @@ export function Shell({ page, school, classroom, navigate, help, proStatus, upgr
           <div><strong>FunChoice Pro</strong><small>{proStatus}</small></div>
         </div> : <button className="button soft license-button" onClick={upgrade}><Sparkles size={16}/> Nhập key Pro</button>}
         <div className="local-status"><span className="status-dot"/><div><strong>Chế độ ngoại tuyến</strong><small>Dữ liệu lưu trên máy này</small></div></div>
-        <div className="version"><span>v1.2.16</span></div>
+        <div className="version"><span>v1.2.20</span></div>
       </div>
     </aside>
     <div className="workspace">
