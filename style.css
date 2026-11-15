@@ -43,6 +43,13 @@ figure { min-width: 0; margin: 0; }
 figcaption { padding: 11px 14px; font-size: 13px; line-height: 1.4; }
 .preview figcaption { color: #e5d6f8; }
 .games-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 25px; }
+.escape-showcase { display: grid; grid-template-columns: minmax(0, .78fr) minmax(0, 1.22fr); align-items: center; overflow: hidden; margin-top: 25px; border: 1px solid #674a3a; border-radius: 16px; color: #fff4e6; background: #2d211f; }
+.escape-copy { padding: clamp(20px, 3.1vw, 36px); }
+.escape-copy .overline { color: #ffcf94; }
+.escape-copy p:not(.overline) { margin-top: 12px; color: #f2dfcd; }
+.escape-copy ul { display: grid; gap: 5px; margin: 17px 0 0; padding-left: 19px; color: #f2dfcd; }
+.escape-copy li::marker { color: #ffcf94; }
+.escape-preview img { width: 100%; }
 .game-card { padding: clamp(20px, 3.1vw, 36px); border: 1px solid var(--line); border-radius: 16px; background: #fff; }
 .game-card.meteor { background: #f0e9ff; }
 .game-card.relay { background: #fdf0df; border-color: #f0dac2; }
@@ -89,7 +96,7 @@ ol p { margin-top: 8px; color: var(--muted); }
   .brand img { width: 48px; }
   .brand, .brand span { gap: 7px; padding-left: 0; }
   .brand span { border: 0; }
-  .games-grid, .features-grid, .studio, ol { grid-template-columns: 1fr; }
+  .escape-showcase, .games-grid, .features-grid, .studio, ol { grid-template-columns: 1fr; }
   .studio-logo { padding: 25px; }
   .studio-logo img { width: min(58%, 200px); }
 }
