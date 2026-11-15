@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "funchoice-pro",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "funchoice-pro",
+    "database_id": "e301158e-b3ce-4111-a82c-32e5f89e36e3",
+    "migrations_dir": "migrations"
+  }],
+  "vars": {
+    "PAYMENT_PROVIDER": "payos",
+    "PUBLIC_BASE_URL": "https://funchoice-pro.solotech-funchoice.workers.dev",
+    "LICENSE_PUBLIC_KEY_HEX": "78f7ce2eff00971b2acf95281a80ae8314107e5deaed0f9c96c00f2d010644cf"
+  }
+}

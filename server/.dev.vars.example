@@ -1,0 +1,7 @@
+PAYMENT_PROVIDER=mock
+PUBLIC_BASE_URL=http://127.0.0.1:8787
+MOCK_WEBHOOK_SECRET=local-test-only
+LICENSE_PUBLIC_KEY_HEX=replace_with_local_test_public_key
+LICENSE_SIGNING_PKCS8_B64=replace_with_local_test_PKCS8_base64
+# Production: enter PAYOS_CLIENT_ID, PAYOS_API_KEY, PAYOS_CHECKSUM_KEY and
+# LICENSE_SIGNING_PKCS8_B64 using Wrangler secrets after verification and review.

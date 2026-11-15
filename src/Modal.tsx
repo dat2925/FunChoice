@@ -10,7 +10,7 @@ export function errorText(error: unknown) {
   return typeof error === 'string' ? error : error instanceof Error ? error.message : 'Đã xảy ra lỗi. Vui lòng thử lại.'
 }
 
-export default function Modal({ spec, close }: { spec: DialogSpec; close: () => void }) {
+export default function Modal({ spec, close, className }: { spec: DialogSpec; close: () => void; className?: string }) {
   const ref = useRef<HTMLDialogElement>(null)
   const locked = useRef(false)
   const [busy, setBusy] = useState(false)
@@ -31,7 +31,7 @@ export default function Modal({ spec, close }: { spec: DialogSpec; close: () => 
     catch (cause) { setError(errorText(cause)) }
     finally { locked.current = false; setBusy(false) }
   }
-  return <dialog ref={ref} className="dialog" aria-labelledby="dialog-title" onCancel={(event) => { event.preventDefault(); if (!locked.current) close() }}>
+  return <dialog ref={ref} className={className ? `dialog ${className}` : 'dialog'} aria-labelledby="dialog-title" onCancel={(event) => { event.preventDefault(); if (!locked.current) close() }}>
     <form onSubmit={save}>
       <div className="dialog-head"><h2 id="dialog-title">{spec.title}</h2><button type="button" className="icon-button" aria-label="Đóng" onClick={close} disabled={busy}><X size={20}/></button></div>
       {spec.description && <p className="dialog-description">{spec.description}</p>}

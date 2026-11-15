@@ -67,6 +67,8 @@ Trong **Chuẩn bị câu hỏi**, chọn **Tải Excel mẫu**, sau đó nhập
 
 ## Miễn phí và Pro
 
+Mã tích hợp thanh toán và cấp key theo mã máy nằm ở [server/](server/README.md), gồm hướng dẫn chạy mock và cấu hình triển khai payOS.
+
 Bản miễn phí cho tạo tối đa 2 lớp trên toàn ứng dụng, thêm tối đa 30 học sinh mỗi lớp, chọn 1 học sinh mỗi lượt và dùng nhạc nền Gay cấn. Các giới hạn số lớp, số học sinh và số người được chọn được gỡ sau khi kích hoạt Pro. Pro có thêm nhạc nền Phiêu lưu, Arcade và MP3. Trong cấu hình, chọn **Chọn tệp MP3…** để lưu một bản sao nhạc nền (tối đa 50 MB). Bản sao được giữ sau khi đóng ứng dụng.
 
 Mở **Nhập key Pro**, sao chép **Mã máy** và gửi cho SoloTech qua Zalo **0944228546** hoặc email **solotechvn.official@gmail.com**. Dán key được cấp vào cùng cửa sổ. Key chỉ dùng trên máy có mã tương ứng, với lựa chọn vĩnh viễn hoặc dùng đến hết ngày theo giờ Việt Nam. Nếu đang dùng key chia sẻ cũ `FC-PRO2`, hãy gửi mã máy để được cấp lại. Sau khi hết hạn, dữ liệu hiện có vẫn dùng được và các lượt đã bắt đầu có thể hoàn tất. [Hướng dẫn cấp key dành cho SoloTech](scripts/README.md).

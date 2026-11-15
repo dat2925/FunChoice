@@ -316,3 +316,24 @@ label input:not([type=checkbox]), label select { width: 100%; border: 1px solid 
 .update-notes { white-space: pre-wrap; overflow-wrap: anywhere; }
 .update-dialog progress { width: 100%; accent-color: #633bc9; }
 .update-dialog .toolbar-actions { margin-top: 18px; justify-content: flex-end; }
+.purchase-dialog { max-width: min(720px, calc(100vw - 36px)); max-height: calc(100dvh - 36px); }
+.purchase-panel { display: grid; gap: 12px; margin-top: 16px; }
+.purchase-plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.purchase-plan { display: grid; grid-template-rows: auto auto 1fr auto; gap: 8px; padding: 13px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.purchase-plan-featured { border-color: #c9b5ff; background: #f7f2ff; }
+.purchase-plan-lifetime { border-color: #e5ca91; background: #fff8eb; }
+.purchase-plan-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 8px; }
+.purchase-plan-heading h3 { font-size: 14px; }
+.purchase-plan-badge { padding: 2px 6px; border-radius: 6px; background: #eaddff; color: #54318c; font-size: 11px; font-weight: 800; }
+.purchase-plan-lifetime .purchase-plan-badge { background: #f8e4b9; color: #694410; }
+.purchase-plan-pricing { align-self: end; }
+.purchase-plan-price { font-size: 18px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.purchase-plan-savings { display: grid; gap: 2px; margin-top: 4px; color: #176044; }
+.purchase-plan-savings small { color: var(--muted); line-height: 1.35; }
+.purchase-plan .button { justify-content: center; }
+.purchase-panel input { min-width: 0; }
+@media (max-width: 640px) { .purchase-plans { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 380px) { .purchase-plans { grid-template-columns: minmax(0, 1fr); } }
+.purchase-panel .toolbar-actions { flex-wrap: wrap; margin-top: 8px; }
+.purchase-panel details summary { cursor: pointer; color: var(--accent-dark); font-weight: 700; }
+.purchase-panel details[open] summary { margin-bottom: 8px; }

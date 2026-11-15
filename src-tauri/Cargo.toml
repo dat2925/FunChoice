@@ -1,6 +1,6 @@
 [package]
 name = "solotech-meteor"
-version = "1.2.21"
+version = "1.2.23"
 edition = "2021"
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -9,6 +9,9 @@ tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-updater = "2"
+tauri-plugin-opener = "2"
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
 rusqlite = { version = "0.37", features = ["bundled", "backup"] }
 serde = { version = "1", features = ["derive"] }
 uuid = { version = "1", features = ["v4"] }

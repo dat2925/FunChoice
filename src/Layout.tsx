@@ -52,9 +52,9 @@ const labels: Record<Page, string> = {
   questions: 'Chuẩn bị câu hỏi', games: 'Chọn trò chơi', setup: 'Thiên thạch', relay: 'Tiếp sức đấu đội',
   history: 'Lịch sử chọn', backup: 'Sao lưu dữ liệu',
 }
-export function Shell({ page, school, classroom, navigate, help, proStatus, upgrade, updateBlocked, children }: {
+export function Shell({ page, school, classroom, navigate, help, proStatus, upgrade, purchase, updateBlocked, children }: {
   page: Page; school: School | null; classroom: Classroom | null
-  navigate: (page: Page) => void; help: () => void; proStatus?: string; upgrade: () => void; updateBlocked: boolean; children: ReactNode
+  navigate: (page: Page) => void; help: () => void; proStatus?: string; upgrade: () => void; purchase?: () => void; updateBlocked: boolean; children: ReactNode
 }) {
   const schoolArea = ['schools', 'classrooms', 'students', 'questions', 'games', 'setup', 'relay'].includes(page)
   return <div className="shell">
@@ -79,6 +79,7 @@ export function Shell({ page, school, classroom, navigate, help, proStatus, upgr
           <Sparkles size={16} aria-hidden="true"/>
           <div><strong>FunChoice Pro</strong><small>{proStatus}</small></div>
         </div> : <button className="button soft license-button" onClick={upgrade}><Sparkles size={16}/> Nhập key Pro</button>}
+        {purchase && <button className="button secondary license-button" onClick={purchase}>Nâng cấp Pro</button>}
         <div className="local-status"><span className="status-dot"/><div><strong>Chế độ ngoại tuyến</strong><small>Dữ liệu lưu trên máy này</small></div></div>
         <UpdatePanel blocked={updateBlocked}/>
       </div>

@@ -2,6 +2,7 @@
 
 mod db;
 mod license;
+mod payments;
 mod selection;
 
 use db::{Classroom, Result, School, Session, Settings, Student, StudentInput};
@@ -301,6 +302,7 @@ fn main() {
         }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let dir = app.path().app_local_data_dir()?;
             #[cfg(debug_assertions)]
@@ -316,6 +318,7 @@ fn main() {
                 music_path: dir.join("background.mp3"),
                 license: Mutex::new(License::load(&dir)),
             });
+            app.manage(payments::Payments::new());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -324,6 +327,13 @@ fn main() {
             has_background_music,
             license_info,
             activate_pro,
+            payments::pro_purchase_available,
+            payments::pro_plans,
+            payments::pro_create_order,
+            payments::pro_order_status,
+            payments::pro_claim,
+            payments::pro_recover,
+            payments::pro_open_checkout,
             list_schools,
             list_classrooms,
             list_students,

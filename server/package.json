@@ -1,0 +1,25 @@
+{
+  "name": "funchoice-pro-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "mock:setup": "node scripts/mock-setup.mjs",
+    "mock:prices": "wrangler d1 execute DB --local --command \"UPDATE plans SET amount = CASE id WHEN 'pro-1m' THEN 19000 WHEN 'pro-3m' THEN 39000 WHEN 'pro-6m' THEN 69000 WHEN 'pro-1y' THEN 100000 WHEN 'pro-2y' THEN 180000 WHEN 'pro-lifetime' THEN 300000 END, active = 1\"",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "migrate:local": "wrangler d1 migrations apply DB --local",
+    "deploy:check": "wrangler deploy --dry-run --outdir dist"
+  },
+  "dependencies": {
+    "@payos/node": "^2.0.6",
+    "hono": "^4.13.18"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261115.1",
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.162.0"
+  }
+}

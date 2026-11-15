@@ -57,6 +57,14 @@ impl Grant {
     fn active(self, now: u64) -> bool {
         self.expires_at.is_none_or(|expiry| now < expiry)
     }
+
+    fn supersedes(self, current: Self) -> bool {
+        match (self.expires_at, current.expires_at) {
+            (None, Some(_)) => true,
+            (Some(next), Some(old)) => next > old,
+            _ => false,
+        }
+    }
 }
 fn now() -> u64 {
     std::time::SystemTime::now()
@@ -90,6 +98,15 @@ fn verify(key: &str, machine: Option<&str>, public: &VerifyingKey) -> Option<Gra
 }
 
 fn public_key() -> VerifyingKey {
+    #[cfg(debug_assertions)]
+    if let Ok(value) = std::env::var("FUNCHOICE_DEV_LICENSE_PUBLIC_KEY_HEX") {
+        let mut bytes = [0; 32];
+        if hex::decode_to_slice(value.trim(), &mut bytes).is_ok() {
+            if let Ok(key) = VerifyingKey::from_bytes(&bytes) {
+                return key;
+            }
+        }
+    }
     let mut bytes = [0; 32];
     hex::decode_to_slice(include_str!("../pro-public.hex").trim(), &mut bytes)
         .expect("invalid Pro public key encoding");
@@ -128,6 +145,15 @@ impl License {
         }
     }
 
+    pub fn purchase_context(&self) -> Result<(String, Option<String>)> {
+        let machine = self.machine.clone().ok_or("Không đọc được mã máy.")?;
+        let key = std::fs::read_to_string(&self.file)
+            .ok()
+            .map(|key| key.trim().to_owned())
+            .filter(|key| verify(key, Some(&machine), &public_key()).is_some());
+        Ok((machine, key))
+    }
+
     pub fn activate(&mut self, key: &str) -> Result<LicenseInfo> {
         use std::io::Write;
         let key = key.trim();
@@ -142,14 +168,13 @@ impl License {
         if !grant.active(now()) {
             return Err("Key Pro này đã hết hạn.".into());
         }
-        if self.pro() {
-            if self
-                .grant
-                .is_some_and(|current| current.expires_at == grant.expires_at)
-            {
+        if let Some(current) = self.grant {
+            if current.expires_at == grant.expires_at {
                 return Ok(self.info());
             }
-            return Err("Máy này đã có key Pro còn hiệu lực.".into());
+            if !grant.supersedes(current) {
+                return Err("Key mới sẽ làm giảm thời hạn Pro hiện tại.".into());
+            }
         }
         let parent = self
             .file
@@ -171,6 +196,25 @@ impl License {
 mod tests {
     use super::*;
     use ed25519_dalek::{Signer, SigningKey};
+
+    #[test]
+    fn a_replacement_grant_can_extend_or_go_permanent_but_not_reduce_access() {
+        let current = Grant {
+            expires_at: Some(200),
+        };
+        let shorter = Grant {
+            expires_at: Some(190),
+        };
+        let longer = Grant {
+            expires_at: Some(210),
+        };
+        let forever = Grant { expires_at: None };
+        assert!(!shorter.supersedes(current));
+        assert!(!current.supersedes(current));
+        assert!(longer.supersedes(current));
+        assert!(forever.supersedes(current));
+        assert!(!longer.supersedes(forever));
+    }
     #[test]
     fn previously_signed_portable_keys_are_rejected() {
         let issuer = SigningKey::from_bytes(&[1; 32]);

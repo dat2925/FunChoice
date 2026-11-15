@@ -59,6 +59,28 @@ test.afterEach(async () => {
   if (data) await rm(data, { recursive: true, force: true, maxRetries: 6, retryDelay: 250 })
 })
 
+test('Windows: kích hoạt Pro từ thanh toán giả lập sau khi mở lại', async ({}) => {
+  test.skip(process.env.FUNCHOICE_RUN_PAYMENT_E2E !== '1', 'Cần Worker mock và public key debug.')
+  data = await mkdtemp(resolve(tmpdir(), 'solotech-payment-'))
+  let page = await launch()
+  await page.getByRole('button', { name: 'Nâng cấp Pro' }).click()
+  await page.getByRole('button', { name: /Pro 1 năm/ }).click()
+  await expect(page.getByLabel('Mã khôi phục đơn hàng')).toHaveValue(/^[0-9a-f-]{36}\.[0-9a-f]{64}$/)
+  await expect(page.getByRole('button', { name: 'Mở trang thanh toán' })).toBeEnabled()
+  const [id, token] = (await page.getByLabel('Mã khôi phục đơn hàng').inputValue()).split('.')
+  const response = await fetch('http://127.0.0.1:8787/v1/orders/' + id, { headers: { Authorization: 'Bearer ' + token } })
+  expect(response.ok).toBe(true)
+  const { checkoutUrl } = await response.json() as { checkoutUrl: string }
+  expect(checkoutUrl).toMatch(/^http:\/\/127\.0\.0\.1:8787\/mock\/checkout\//)
+  await close()
+  const payment = await fetch(checkoutUrl, { method: 'POST', redirect: 'manual' })
+  expect(payment.status).toBe(303)
+  page = await launch()
+  await expect(page.locator('.license-status')).toContainText('Đến hết')
+  await page.getByRole('button', { name: 'Nâng cấp Pro' }).click()
+  await expect(page.getByLabel('Mã khôi phục đơn hàng')).toHaveValue(id + '.' + token)
+})
+
 test('Windows: nhập Excel, chơi với 99 học sinh, mở lại giữa lượt và đối chiếu lịch sử', async ({}, info) => {
   data = await mkdtemp(resolve(tmpdir(), 'solotech-e2e-'))
   let page = await launch()

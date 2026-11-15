@@ -8,6 +8,7 @@ import Modal, { errorText, type DialogSpec } from './Modal'
 import Setup from './Setup'
 import QuestionSetup from './QuestionSetup'
 import Relay from './Relay'
+import ProPurchase, { proPurchaseAvailable } from './ProPurchase'
 import SchoolThemePicker from './SchoolThemePicker'
 import GameView, { Results } from './GameView'
 import { asImage, parts } from './game/characters'
@@ -31,6 +32,8 @@ export default function App() {
   const [students, setStudents] = useState<Student[]>([])
   const [history, setHistory] = useState<Session[]>([])
   const [license, setLicense] = useState<LicenseInfo | null>(null)
+  const [purchaseAvailable, setPurchaseAvailable] = useState(false)
+  const [purchaseOpen, setPurchaseOpen] = useState(false)
   const [pending, setPending] = useState<Session | null>(null)
   const [game, setGame] = useState<{ initial: Session; students: Student[]; audio?: AudioContext; mp3?: AudioBuffer } | null>(null)
   const [result, setResult] = useState<Session | null>(null)
@@ -46,6 +49,7 @@ export default function App() {
 
   useEffect(() => {
     void restoreMusic().catch(() => undefined)
+    void proPurchaseAvailable().then(setPurchaseAvailable).catch(() => undefined)
     const refreshLicense = () => void api.license().then(setLicense).catch((cause) => setError(errorText(cause)))
     refreshLicense()
     const timer = window.setInterval(refreshLicense, 30_000)
@@ -80,11 +84,10 @@ export default function App() {
     try {
       const status = await api.license()
       setLicense(status)
-      if (status.pro) return
       const expired = status.expiresAt !== null
       setDialog({
         title: 'FunChoice Pro',
-        description: (status.needsMachineKey ? 'Key dùng chung đã ngừng hỗ trợ. Gửi mã máy bên dưới cho SoloTech để nhận key riêng. ' : expired ? 'Key đã hết hạn. ' : '') + 'Bản miễn phí có tối đa ' + status.freeClasses + ' lớp, ' + status.freeStudents + ' học sinh mỗi lớp, 1 học sinh mỗi lượt và nhạc nền mặc định.',
+        description: status.pro ? 'Nhập key có thời hạn dài hơn hoặc key vĩnh viễn cho máy này.' : (status.needsMachineKey ? 'Key dùng chung đã ngừng hỗ trợ. Gửi mã máy bên dưới cho SoloTech để nhận key riêng. ' : expired ? 'Key đã hết hạn. ' : '') + 'Bản miễn phí có tối đa ' + status.freeClasses + ' lớp, ' + status.freeStudents + ' học sinh mỗi lớp, 1 học sinh mỗi lượt và nhạc nền mặc định.',
         submit: 'Kích hoạt Pro',
         body: <>
           <label>Mã máy<input value={status.machineCode ?? 'Không đọc được mã máy'} readOnly onFocus={(e) => e.currentTarget.select()}/></label>
@@ -385,7 +388,7 @@ export default function App() {
         </div>
         break
     }
-    body = <Shell page={page} school={school} classroom={classroom} navigate={navigate} updateBlocked={!ready || !!pending || busy || !!dialog} proStatus={license?.pro ? (license.expiresAt == null ? 'Vĩnh viễn' : 'Đến hết ' + licenseDate(license.expiresAt)) : undefined} upgrade={() => void proDialog()} help={() => setDialog({
+    body = <Shell page={page} school={school} classroom={classroom} navigate={navigate} updateBlocked={!ready || !!pending || busy || !!dialog || purchaseOpen} proStatus={license?.pro ? (license.expiresAt == null ? 'Vĩnh viễn' : 'Đến hết ' + licenseDate(license.expiresAt)) : undefined} upgrade={() => void proDialog()} purchase={purchaseAvailable ? () => setPurchaseOpen(true) : undefined} help={() => setDialog({
       title: 'Hướng dẫn sử dụng', body: <div className="help-text"><p>Thêm trường, tạo lớp và thêm học sinh. Khi nhập Excel hoặc CSV, đặt tiêu đề <strong>Họ và tên</strong> ở dòng đầu. Bạn có thể thêm cột <strong>Mã học sinh</strong>, <strong>Giới tính</strong> (Nam/Nữ) và <strong>Trạng thái</strong>.</p><p>Mở <strong>Cấu hình trò chơi</strong> để chọn số lượng, chế độ và hiệu ứng. Trong lượt chơi, chọn <strong>Toàn màn hình</strong> để trình chiếu. Kết quả được lưu theo từng lần công bố.</p><p>Nếu đóng cửa sổ khi đang chơi, mở lại ứng dụng và chọn <strong>Tiếp tục lượt</strong>.</p></div>,
     })}>
       {error && <div className="alert" role="alert">{error}<button className="icon-button" aria-label="Đóng thông báo lỗi" onClick={() => setError('')}><X size={16}/></button></div>}
@@ -397,6 +400,8 @@ export default function App() {
     {body}
     {notice && !game && <div className="toast" role="status"><Sparkles size={17}/>{notice}<button className="icon-button" aria-label="Đóng thông báo" onClick={() => setNotice('')}><X size={16}/></button></div>}
     {dialog && <Modal spec={dialog} close={() => setDialog(null)}/>}
+    {purchaseAvailable && <ProPurchase open={purchaseOpen} close={() => setPurchaseOpen(false)} license={license}
+      activated={(status) => { setLicense(status); updated('Đã kích hoạt FunChoice Pro.') }}/>}
   </>
 }
 
