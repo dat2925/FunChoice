@@ -52,8 +52,6 @@ svg { flex-shrink: 0; }
 .local-status strong, .local-status small { display: block; }
 .local-status strong { font-size: 11px; font-weight: 800; }
 .local-status small { font-size: 9px; margin-top: 4px; color: #6f657e; }
-.version { display: flex; justify-content: space-between; padding: 15px 4px 0; font-size: 9px; font-weight: 700; letter-spacing: 1.15px; color: #81768f; }
-.version span { letter-spacing: 0; }
 .workspace { min-width: 0; }
 .topbar { min-height: 72px; display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 12px 36px; background: #fff; border-bottom: 1px solid #eeeaf3; }
 .crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: #746980; font-size: 13px; }
@@ -309,3 +307,12 @@ label input:not([type=checkbox]), label select { width: 100%; border: 1px solid 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; }
 }
+.update-panel { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-top: 10px; color: var(--muted); font-size: 11px; }
+.update-panel > .button { padding: 6px 9px; min-height: 30px; font-size: 11px; }
+.update-dialog { margin: auto; width: min(460px, calc(100% - 32px)); max-height: calc(100% - 32px); padding: 24px; color: var(--ink); }
+.update-dialog::backdrop { background: #19102f91; }
+.update-dialog h2 { margin: 0 0 12px; font-size: 22px; }
+.update-dialog p { margin: 10px 0; }
+.update-notes { white-space: pre-wrap; overflow-wrap: anywhere; }
+.update-dialog progress { width: 100%; accent-color: #633bc9; }
+.update-dialog .toolbar-actions { margin-top: 18px; justify-content: flex-end; }

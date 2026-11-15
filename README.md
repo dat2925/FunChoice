@@ -4,7 +4,7 @@
 
 ## Sử dụng
 
-1. Chạy bộ cài `FunChoice-1.2.20-x64-setup.exe`, rồi mở ứng dụng từ menu Start. Các bản đã đăng có trong [GitHub Releases](https://github.com/dat2925/FunChoice/releases).
+1. Tải bộ cài Windows x64 từ [trang FunChoice](https://dat2925.github.io/FunChoice/), chạy tệp rồi mở ứng dụng từ menu Start.
 2. Thêm trường và lớp. Trong lớp, thêm từng học sinh hoặc chọn **Nhập Excel / CSV**.
 3. Mở **Cấu hình trò chơi** và chọn **Thiên thạch** hoặc **Tiếp sức đấu đội**. Với Thiên thạch, chọn số học sinh, chế độ và hiệu ứng, rồi chọn **Bắt đầu trò chơi**. Dùng **Toàn màn hình** để sân chơi phủ kín màn hình. Nhấn **Esc** để hiện lại các nút điều khiển.
 4. Sau lượt chơi, sao chép hoặc xuất kết quả CSV. Mục **Lịch sử chọn** lưu thứ tự công bố, thời gian, chế độ, trường và lớp.
@@ -31,6 +31,16 @@ Chọn loại **Trắc nghiệm** để tạo từ 2 đến 8 phương án và �
 ## Sao lưu
 
 Mở **Sao lưu dữ liệu** để tạo tệp `.sqlite`. Thao tác khôi phục thay thế dữ liệu hiện tại sau khi xác nhận. Ứng dụng lưu dữ liệu tại `%LOCALAPPDATA%\vn.solotech.meteor\classroom.sqlite`. Khi xóa trường, lớp hoặc học sinh, thông tin đã công bố vẫn xuất hiện trong lịch sử.
+
+## Cập nhật FunChoice
+
+Từ phiên bản 1.2.21, FunChoice kiểm tra bản mới khi mở ứng dụng. Bạn cũng có thể bấm **Kiểm tra cập nhật** ở cuối thanh bên. Khi có bản mới, mở thông báo, kết thúc lượt chơi đang dở và bấm **Cập nhật ngay**. Bộ cài giữ cùng mã ứng dụng để tiếp tục dùng dữ liệu lớp và key Pro hiện có. Người dùng bản 1.2.20 trở về trước cần chạy bộ cài mới thủ công một lần.
+
+### Phát hành bản cập nhật
+
+Tăng phiên bản trong `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` và các tệp npm. Chạy `npm run release:windows`, rồi tải đồng thời bộ cài `FunChoice-<version>-x64-setup.exe`, tệp `.exe.sig` và `latest.json` từ thư mục `release` lên GitHub Release có tag `v<version>`. Đặt bản đó làm **Latest**. Ứng dụng đọc [manifest cập nhật](https://github.com/dat2925/FunChoice/releases/latest/download/latest.json).
+
+Máy phát hành dùng khóa ký gốc tại `%LOCALAPPDATA%\FunChoiceRelease\updater.key` hoặc đường dẫn trong `TAURI_SIGNING_PRIVATE_KEY`. Giữ bản sao khóa này ngoài GitHub để các phiên bản đã cài tiếp tục xác minh được bản mới.
 
 ## Phát triển trên Windows
 

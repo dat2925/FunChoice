@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "FunChoice",
   "mainBinaryName": "FunChoice",
-  "version": "1.2.20",
+  "version": "1.2.21",
   "identifier": "vn.solotech.meteor",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -14,7 +14,15 @@
     "windows": [{"label":"main","title":"FunChoice · SoloTech","width":1440,"height":950,"minWidth":820,"minHeight":650}],
     "security": {"csp":"default-src 'self'; script-src 'self'; connect-src ipc: http://ipc.localhost; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; object-src 'none'; base-uri 'none'"}
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENBRjAzNzMyMEQxOTBERDUKUldUVkRSa05NamZ3eWtacGRXZ1FmdHdtblRvSDZBUURsUjBOMkYzKzByQ2FkVENqd0VPTVREcXkK",
+      "endpoints": ["https://github.com/dat2925/FunChoice/releases/latest/download/latest.json"],
+      "windows": {"installMode": "passive"}
+    }
+  },
   "bundle": {
+    "createUpdaterArtifacts": true,
     "active": true,
     "targets": ["nsis"],
     "publisher": "SoloTech",

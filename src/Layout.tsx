@@ -4,6 +4,7 @@ import type { Classroom, School } from './api'
 import type { Page } from './store'
 
 import ProductBrand from './ProductBrand'
+import UpdatePanel from './UpdatePanel'
 
 export function HeroArt() {
   return <svg className="hero-art" viewBox="0 0 492 260" fill="none" aria-hidden="true">
@@ -51,9 +52,9 @@ const labels: Record<Page, string> = {
   questions: 'Chuẩn bị câu hỏi', games: 'Chọn trò chơi', setup: 'Thiên thạch', relay: 'Tiếp sức đấu đội',
   history: 'Lịch sử chọn', backup: 'Sao lưu dữ liệu',
 }
-export function Shell({ page, school, classroom, navigate, help, proStatus, upgrade, children }: {
+export function Shell({ page, school, classroom, navigate, help, proStatus, upgrade, updateBlocked, children }: {
   page: Page; school: School | null; classroom: Classroom | null
-  navigate: (page: Page) => void; help: () => void; proStatus?: string; upgrade: () => void; children: ReactNode
+  navigate: (page: Page) => void; help: () => void; proStatus?: string; upgrade: () => void; updateBlocked: boolean; children: ReactNode
 }) {
   const schoolArea = ['schools', 'classrooms', 'students', 'questions', 'games', 'setup', 'relay'].includes(page)
   return <div className="shell">
@@ -79,7 +80,7 @@ export function Shell({ page, school, classroom, navigate, help, proStatus, upgr
           <div><strong>FunChoice Pro</strong><small>{proStatus}</small></div>
         </div> : <button className="button soft license-button" onClick={upgrade}><Sparkles size={16}/> Nhập key Pro</button>}
         <div className="local-status"><span className="status-dot"/><div><strong>Chế độ ngoại tuyến</strong><small>Dữ liệu lưu trên máy này</small></div></div>
-        <div className="version"><span>v1.2.20</span></div>
+        <UpdatePanel blocked={updateBlocked}/>
       </div>
     </aside>
     <div className="workspace">

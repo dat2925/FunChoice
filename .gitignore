@@ -11,6 +11,7 @@ outputs/
 __pycache__/
 *.pem
 *.key
+*.key.pub
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm

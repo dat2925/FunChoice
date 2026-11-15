@@ -385,7 +385,7 @@ export default function App() {
         </div>
         break
     }
-    body = <Shell page={page} school={school} classroom={classroom} navigate={navigate} proStatus={license?.pro ? (license.expiresAt == null ? 'Vĩnh viễn' : 'Đến hết ' + licenseDate(license.expiresAt)) : undefined} upgrade={() => void proDialog()} help={() => setDialog({
+    body = <Shell page={page} school={school} classroom={classroom} navigate={navigate} updateBlocked={!ready || !!pending || busy || !!dialog} proStatus={license?.pro ? (license.expiresAt == null ? 'Vĩnh viễn' : 'Đến hết ' + licenseDate(license.expiresAt)) : undefined} upgrade={() => void proDialog()} help={() => setDialog({
       title: 'Hướng dẫn sử dụng', body: <div className="help-text"><p>Thêm trường, tạo lớp và thêm học sinh. Khi nhập Excel hoặc CSV, đặt tiêu đề <strong>Họ và tên</strong> ở dòng đầu. Bạn có thể thêm cột <strong>Mã học sinh</strong>, <strong>Giới tính</strong> (Nam/Nữ) và <strong>Trạng thái</strong>.</p><p>Mở <strong>Cấu hình trò chơi</strong> để chọn số lượng, chế độ và hiệu ứng. Trong lượt chơi, chọn <strong>Toàn màn hình</strong> để trình chiếu. Kết quả được lưu theo từng lần công bố.</p><p>Nếu đóng cửa sổ khi đang chơi, mở lại ứng dụng và chọn <strong>Tiếp tục lượt</strong>.</p></div>,
     })}>
       {error && <div className="alert" role="alert">{error}<button className="icon-button" aria-label="Đóng thông báo lỗi" onClick={() => setError('')}><X size={16}/></button></div>}
