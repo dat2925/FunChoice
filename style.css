@@ -64,6 +64,7 @@ figcaption { padding: 11px 14px; font-size: 13px; line-height: 1.4; }
 .features-grid article { border-top: 3px solid #c4a8f7; padding-top: 15px; }
 .features-grid h3 { font-size: 22px; }
 .features-grid p { margin-top: 9px; color: var(--muted); }
+.sample-downloads { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 15px; font-size: 14px; }
 .studio { display: grid; grid-template-columns: minmax(0, .78fr) minmax(0, 1.22fr); align-items: center; overflow: hidden; border: 1px solid #cadcf6; border-radius: 18px; background: #e9f2ff; }
 .studio-logo { height: 100%; display: grid; place-items: center; padding: clamp(25px, 5vw, 57px); background: #f5f9ff; }
 .studio-logo img { width: min(100%, 290px); }
