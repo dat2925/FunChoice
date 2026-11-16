@@ -1,6 +1,6 @@
 [package]
 name = "solotech-meteor"
-version = "1.2.26"
+version = "1.2.27"
 edition = "2021"
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

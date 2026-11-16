@@ -6,6 +6,8 @@ use tauri::State;
 use tauri_plugin_opener::OpenerExt;
 use uuid::Uuid;
 
+const PRODUCTION_ORIGIN: &str = "https://funchoice-pro.solotech-funchoice.workers.dev";
+
 pub struct Payments {
     base: Option<Url>,
     client: Option<Client>,
@@ -13,24 +15,24 @@ pub struct Payments {
 
 impl Payments {
     pub fn new() -> Self {
-        let configured = option_env!("FUNCHOICE_PRO_API_URL");
+        let default_origin = if cfg!(debug_assertions) {
+            "http://127.0.0.1:8787"
+        } else {
+            PRODUCTION_ORIGIN
+        };
+        let configured = option_env!("FUNCHOICE_PRO_API_URL").unwrap_or(default_origin);
         #[cfg(debug_assertions)]
         let local = std::env::var("FUNCHOICE_PRO_API_URL").ok();
         #[cfg(debug_assertions)]
-        let configured = local
-            .as_deref()
-            .or(configured)
-            .or(Some("http://127.0.0.1:8787"));
-        let base = configured
-            .and_then(|value| Url::parse(value).ok())
-            .filter(|url| {
-                (url.scheme() == "https" || cfg!(debug_assertions) && local_origin(url))
-                    && url.username().is_empty()
-                    && url.password().is_none()
-                    && url.path() == "/"
-                    && url.query().is_none()
-                    && url.fragment().is_none()
-            });
+        let configured = local.as_deref().unwrap_or(configured);
+        let base = Url::parse(configured.trim()).ok().filter(|url| {
+            (url.scheme() == "https" || cfg!(debug_assertions) && local_origin(url))
+                && url.username().is_empty()
+                && url.password().is_none()
+                && url.path() == "/"
+                && url.query().is_none()
+                && url.fragment().is_none()
+        });
         let client = base.as_ref().and_then(|_| {
             let _ = rustls::crypto::ring::default_provider().install_default();
             Client::builder()
@@ -111,7 +113,17 @@ fn apply_key(data: &Data, response: Value) -> Result<LicenseInfo> {
 
 #[tauri::command]
 pub fn pro_purchase_available(payments: State<Payments>) -> bool {
-    payments.base.is_some()
+    payments.base.is_some() && payments.client.is_some()
+}
+
+#[cfg(all(test, not(debug_assertions)))]
+#[test]
+fn release_checkout_has_a_client_and_an_https_origin() {
+    let payments = Payments::new();
+    let expected = option_env!("FUNCHOICE_PRO_API_URL").unwrap_or(PRODUCTION_ORIGIN);
+    assert_eq!(payments.base, Url::parse(expected.trim()).ok());
+    assert_eq!(payments.base.as_ref().unwrap().scheme(), "https");
+    assert!(payments.client.is_some());
 }
 
 #[tauri::command]
