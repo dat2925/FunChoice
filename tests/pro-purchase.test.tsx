@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { invoke } from '@tauri-apps/api/core'
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest'
 import ProPurchase from '../src/ProPurchase'
@@ -93,4 +93,54 @@ it('claims a paid order persisted by the previous desktop version', async () => 
   expect(activated).toHaveBeenCalledWith(renewed)
   expect(localStorage.getItem('funchoice.pro.pending-order')).toBeNull()
   expect(localStorage.getItem('funchoice.pro.last-receipt')).toBe(JSON.stringify(receipt))
+})
+
+it('can switch plans with an order already pending and recover the previous order', async () => {
+  const original = { id: 'old-order', token: 'old-token', planId: 'pro-1m' }
+  localStorage.setItem('funchoice.pro.pending-order', JSON.stringify(original))
+  let resolveOldStatus!: (result: { status: 'paid'; amount: number }) => void
+  const oldStatus = new Promise<{ status: 'paid'; amount: number }>((resolve) => { resolveOldStatus = resolve })
+  const renewed = { ...license, pro: true, expiresAt: 1932500000 }
+  vi.mocked(invoke).mockImplementation(async (command, args) => {
+    if (command === 'pro_plans') return { plans }
+    if (command === 'pro_order_status' && args && 'id' in args && args.id === original.id) return oldStatus
+    if (command === 'pro_recover') return renewed
+    return { status: 'pending', amount: plans[1].amount }
+  })
+  const activated = vi.fn()
+  const props = { open: true, license, close: vi.fn(), activated }
+  const { unmount } = render(<ProPurchase {...props}/>)
+
+  fireEvent.click(screen.getByRole('button', { name: 'Chọn gói khác' }))
+  await screen.findByRole('button', { name: 'Mua Pro 3 tháng' })
+  fireEvent.click(screen.getByRole('button', { name: 'Quay lại đơn đang chọn' }))
+  expect(localStorage.getItem('funchoice.pro.pending-order')).toBe(JSON.stringify(original))
+  expect(vi.mocked(invoke)).not.toHaveBeenCalledWith('pro_create_order', expect.anything())
+
+  fireEvent.click(screen.getByRole('button', { name: 'Chọn gói khác' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Mua Pro 1 tháng' }))
+  expect(screen.getByText('Đơn đang chờ xác nhận')).toBeTruthy()
+  expect(vi.mocked(invoke)).not.toHaveBeenCalledWith('pro_create_order', expect.anything())
+
+  fireEvent.click(screen.getByRole('button', { name: 'Chọn gói khác' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Mua Pro 3 tháng' }))
+  await screen.findByText('Pro 3 tháng')
+  expect(vi.mocked(invoke)).toHaveBeenCalledWith('pro_create_order', {
+    id: expect.any(String), token: expect.any(String), planId: 'pro-3m',
+  })
+  await act(async () => resolveOldStatus({ status: 'paid', amount: plans[0].amount }))
+  expect(vi.mocked(invoke)).not.toHaveBeenCalledWith('pro_claim', expect.anything())
+  expect(localStorage.getItem('funchoice.pro.previous-orders')).toBe(JSON.stringify([original]))
+
+  unmount()
+  render(<ProPurchase {...props}/>)
+  await screen.findByText('Pro 3 tháng')
+  fireEvent.click(screen.getByText('Đơn trước'))
+  expect(screen.getByLabelText<HTMLInputElement>('Mã khôi phục đơn trước').value).toBe('old-order.old-token')
+  fireEvent.click(screen.getByText('Khôi phục bản quyền'))
+  fireEvent.change(screen.getByLabelText('Mã khôi phục', { exact: true }), { target: { value: 'old-order.old-token' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Khôi phục Pro' }))
+  await screen.findByText('Đã kích hoạt FunChoice Pro.')
+  expect(vi.mocked(invoke)).toHaveBeenCalledWith('pro_recover', { id: original.id, token: original.token })
+  expect(activated).toHaveBeenCalledWith(renewed)
 })

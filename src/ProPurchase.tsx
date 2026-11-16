@@ -9,6 +9,7 @@ interface Order { status: 'pending' | 'paid' | 'expired'; checkoutUrl: string | 
 
 const pendingKey = 'funchoice.pro.pending-order'
 const recoveredKey = 'funchoice.pro.last-receipt'
+const previousOrdersKey = 'funchoice.pro.previous-orders'
 const money = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
 const lifetimeComparisonMonths = 24
 
@@ -20,6 +21,13 @@ function loadReceipt(key: string): Receipt | undefined {
   const value = localStorage.getItem(key)
   if (!value) return undefined
   try { return JSON.parse(value) as Receipt } catch { return undefined }
+}
+
+function loadPreviousOrders(): Receipt[] {
+  try {
+    const values: unknown = JSON.parse(localStorage.getItem(previousOrdersKey) ?? '[]')
+    return Array.isArray(values) ? values.filter((entry) => typeof entry?.id === 'string' && typeof entry.token === 'string') : []
+  } catch { return [] }
 }
 
 function printable(receipt: Receipt) { return receipt.id + '.' + receipt.token }
@@ -38,12 +46,15 @@ export default function ProPurchase({ open, close, activated, license }: {
   const [loading, setLoading] = useState(true)
   const [receipt, setReceipt] = useState(() => loadReceipt(pendingKey))
   const [last, setLast] = useState(() => loadReceipt(recoveredKey))
+  const [previousOrders, setPreviousOrders] = useState(loadPreviousOrders)
+  const [choosingPlan, setChoosingPlan] = useState(false)
   const [order, setOrder] = useState<Order>()
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [restoreCode, setRestoreCode] = useState('')
   const operation = useRef(false)
+  const checking = useRef<string | null>(null)
   const current = useRef(receipt)
 
   const onActivated = useRef(activated)
@@ -64,20 +75,26 @@ export default function ProPurchase({ open, close, activated, license }: {
 
   const poll = useCallback(async () => {
     const entry = current.current
-    if (!entry || operation.current) return
-    operation.current = true
+    if (!entry || operation.current || checking.current === entry.id) return
+    checking.current = entry.id
     try {
       const result = await invoke<Order>('pro_order_status', { id: entry.id, token: entry.token })
+      if (current.current?.id !== entry.id || operation.current) return
       setOrder(result)
       setError('')
       if (result.status === 'paid') {
-        const status = await invoke<LicenseInfo>('pro_claim', { id: entry.id, token: entry.token })
-        complete(entry, status)
+        setChoosingPlan(false)
+        operation.current = true
+        setBusy(true)
+        try { complete(entry, await invoke<LicenseInfo>('pro_claim', { id: entry.id, token: entry.token })) }
+        finally { operation.current = false; setBusy(false) }
       }
     } catch {
-      setError('Chưa kiểm tra được đơn. Bạn có thể thử lại khi có mạng hoặc lấy lại liên kết thanh toán.')
+      if (current.current?.id === entry.id && !operation.current) {
+        setError('Chưa kiểm tra được đơn. Bạn có thể thử lại khi có mạng hoặc lấy lại liên kết thanh toán.')
+      }
     } finally {
-      operation.current = false
+      if (checking.current === entry.id) checking.current = null
     }
   }, [complete])
 
@@ -104,10 +121,18 @@ export default function ProPurchase({ open, close, activated, license }: {
     setError('')
     setMessage('')
     try {
+      const previous = current.current
+      if (previous && previous.id !== entry.id) {
+        const history = [previous, ...previousOrders.filter((item) => item.id !== previous.id && item.id !== entry.id)]
+        localStorage.setItem(previousOrdersKey, JSON.stringify(history))
+        setPreviousOrders(history)
+      }
       // Persist the receipt before any network call or browser hand-off.
       localStorage.setItem(pendingKey, JSON.stringify(entry))
       current.current = entry
       setReceipt(entry)
+      if (previous?.id !== entry.id) setOrder(undefined)
+      setChoosingPlan(false)
       const result = await invoke<Order>('pro_create_order', { id: entry.id, token: entry.token, planId: entry.planId })
       setOrder(result)
       if (result.status === 'paid') {
@@ -118,6 +143,15 @@ export default function ProPurchase({ open, close, activated, license }: {
       }
     } catch (cause) { setError(errorText(cause)) }
     finally { setBusy(false); operation.current = false }
+  }
+
+  function choose(planId: string) {
+    if (operation.current || order?.status === 'paid') return
+    if (current.current?.planId === planId && order?.status !== 'expired') {
+      setChoosingPlan(false)
+      return
+    }
+    void checkout(newReceipt(planId), false)
   }
 
   async function recover() {
@@ -141,13 +175,19 @@ export default function ProPurchase({ open, close, activated, license }: {
   if (!open) return null
   const permanent = license?.pro && license.expiresAt === null
   const visibleReceipt = receipt ?? last
+  const archived = previousOrders.filter((entry) => entry.id !== receipt?.id && entry.id !== last?.id)
+  const currentPlan = plans.find((plan) => plan.id === receipt?.planId)
   const monthlyAmount = plans.find((plan) => plan.id === 'pro-1m')?.amount ?? 0
   return <Modal close={close} className="purchase-dialog" spec={{
     title: 'Nâng cấp Pro',
     description: 'Mỗi gói dùng trên một máy Windows. Sau khi kích hoạt, FunChoice Pro dùng được ngoại tuyến.',
     body: <div className="purchase-panel">
       {loading && <p className="muted" role="status">Đang tải gói Pro…</p>}
-      {permanent ? <p className="hint">Máy này đã có Pro vĩnh viễn.</p> : !receipt && <>
+      {permanent ? <p className="hint">Máy này đã có Pro vĩnh viễn.</p> : (!receipt || choosingPlan) && <>
+        {receipt && <div className="toolbar-actions">
+          <button className="button secondary" type="button" onClick={() => setChoosingPlan(false)}>Quay lại đơn đang chọn</button>
+          <span className="muted">Chọn gói mới để tạo đơn khác. Mã khôi phục của đơn trước sẽ được giữ lại.</span>
+        </div>}
         {!!plans.length && <div className="purchase-plans">{plans.map((plan) => {
           const lifetime = plan.id === 'pro-lifetime'
           const featured = plan.id === 'pro-1y'
@@ -170,7 +210,7 @@ export default function ProPurchase({ open, close, activated, license }: {
             </div>
             <button className={'button ' + (featured || lifetime ? 'primary' : 'secondary')} type="button"
               aria-label={`Mua ${plan.name}`} disabled={busy || !license?.machineCode}
-              onClick={() => void checkout(newReceipt(plan.id), false)}>Mua</button>
+              onClick={() => choose(plan.id)}>Mua</button>
           </article>
         })}</div>}
         {!loading && !plans.length && <>
@@ -178,19 +218,14 @@ export default function ProPurchase({ open, close, activated, license }: {
           <button className="text-button" type="button" onClick={() => void loadPlans()}>Tải lại danh sách gói</button>
         </>}
       </>}
-      {receipt && <div className="hint">
+      {receipt && !choosingPlan && <div className="hint">
+        {currentPlan && <p>{currentPlan.name}</p>}
         <strong>{order?.status === 'expired' ? 'Đơn đã hết hạn' : order?.status === 'paid' ? 'Đã thanh toán' : 'Đơn đang chờ xác nhận'}</strong>
         {order && <p>{money.format(order.amount)}</p>}
         <div className="toolbar-actions">
           <button className="button secondary" type="button" disabled={busy} onClick={() => void poll()}>Kiểm tra đơn hàng</button>
           {order?.status !== 'paid' && order?.status !== 'expired' && <button className="button primary" type="button" disabled={busy} onClick={() => void checkout(receipt, true)}>Mở trang thanh toán</button>}
-          {order?.status === 'expired' && <button className="button secondary" type="button" disabled={busy} onClick={() => {
-            if (operation.current) return
-            localStorage.removeItem(pendingKey)
-            current.current = undefined
-            setReceipt(undefined)
-            setOrder(undefined)
-          }}>Tạo đơn khác</button>}
+          {!permanent && order?.status !== 'paid' && <button className="button secondary" type="button" disabled={busy} onClick={() => setChoosingPlan(true)}>Chọn gói khác</button>}
         </div>
       </div>}
       {visibleReceipt && <div>
@@ -198,6 +233,15 @@ export default function ProPurchase({ open, close, activated, license }: {
         <button className="text-button" type="button" onClick={() => void copy(visibleReceipt)}>Sao chép mã khôi phục</button>
         <p className="muted">Giữ riêng mã này để lấy lại bản quyền trên cùng máy.</p>
       </div>}
+      {!!archived.length && <details>
+        <summary>Đơn trước</summary>
+        {archived.map((entry) => <div key={entry.id}>
+          <label>{plans.find((plan) => plan.id === entry.planId)?.name ?? 'Đơn Pro'}
+            <input aria-label="Mã khôi phục đơn trước" readOnly value={printable(entry)} onFocus={(e) => e.currentTarget.select()}/>
+          </label>
+          <button className="text-button" type="button" onClick={() => void copy(entry)}>Sao chép mã đơn trước</button>
+        </div>)}
+      </details>}
       <details>
         <summary>Khôi phục bản quyền</summary>
         <label>Mã khôi phục<input value={restoreCode} onChange={(e) => setRestoreCode(e.target.value)} maxLength={101} autoComplete="off" spellCheck={false}/></label>
