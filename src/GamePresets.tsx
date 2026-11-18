@@ -37,7 +37,7 @@ function PresetEditor({ previous, classroom, students, pro, bank, exams, close, 
   const count = source === 'keep' ? previous?.questions.length ?? 0 : source === 'questions' ? questionIds.length
     : source === 'exam' ? exam?.questions.length ?? 0 : source === 'bank' ? bank.length : 0
   const Icon = icons[game.kind]
-  const minimum = game.kind === 'escape' ? 2 : 1
+  const minimum = game.kind === 'escape' ? game.settings.questionCount ?? 3 : 1
   const hasRequiredQuestions = source === 'default' || (source === 'keep' && !count) || count >= minimum
   const questionsById = new Map(bank.map((question) => [question.id, question]))
 
@@ -105,7 +105,7 @@ function PresetEditor({ previous, classroom, students, pro, bank, exams, close, 
           </li>)}</ol>}
         </>}
         {source !== 'default' && source !== 'keep' && <p className="muted">{count} câu. {game.kind === 'escape'
-          ? 'Câu đầu dùng ở bàn học và câu thứ hai dùng ở tủ sách.'
+          ? 'Câu hỏi được gắn lần lượt vào các vị trí trong phòng, theo số câu đã chọn.'
           : 'Trò chơi dùng thứ tự đã lưu và quay lại câu đầu nếu còn lượt.'}</p>}
         {!hasRequiredQuestions && <p className="hint">Hãy chọn ít nhất {minimum} câu hỏi.</p>}
       </section>

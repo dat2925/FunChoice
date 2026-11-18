@@ -2,6 +2,7 @@ use crate::{
     db::{self, Question, Result},
     Data,
 };
+use rand::seq::SliceRandom;
 use rusqlite::{params, Connection, OptionalExtension, Row, TransactionBehavior};
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -48,13 +49,26 @@ pub(crate) struct Config {
     wrong_answer: WrongAnswer,
     desk_question_id: Option<String>,
     book_question_id: Option<String>,
+    #[serde(default)]
+    pub(crate) question_count: Option<usize>,
+    #[serde(default)]
+    question_ids: Vec<Option<String>>,
 }
 
 impl Config {
     fn validate(&mut self) -> Result<()> {
         self.name = db::clean(&self.name, 80)?;
-        if self.limit_minutes.is_some_and(|limit| ![5, 10, 15, 20].contains(&limit)) {
+        if self
+            .limit_minutes
+            .is_some_and(|limit| ![5, 10, 15, 20].contains(&limit))
+        {
             return Err("Thời lượng không hợp lệ.".into());
+        }
+        if self
+            .question_count
+            .is_some_and(|count| !(3..=10).contains(&count))
+        {
+            return Err("Số câu hỏi phải từ 3 đến 10.".into());
         }
         Ok(())
     }
@@ -63,6 +77,7 @@ impl Config {
         self.name = title.into();
         self.desk_question_id = None;
         self.book_question_id = None;
+        self.question_ids.clear();
         self.validate()
     }
 }
@@ -73,15 +88,30 @@ enum Item {
     Paper4,
     Paper7,
     Paper2,
+    Paper3,
+    Paper5,
+    Paper6,
+    Paper8,
+    Paper9,
+    Paper0,
+    Paper1,
     PaintingNote,
     Key,
 }
 
-#[derive(Clone, Copy, Deserialize, Serialize)]
+#[derive(Clone, Copy, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) enum Station {
     Desk,
     Book,
+    Clock,
+    Window,
+    Chair,
+    Plant,
+    Box,
+    Lamp,
+    Board,
+    Rug,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -105,7 +135,11 @@ pub(crate) struct EscapeSession {
     revision: u64,
     remaining_ms: Option<u64>,
     elapsed_ms: u64,
-    questions: [Question; 2],
+    questions: Vec<Question>,
+    #[serde(default)]
+    clue_values: Vec<u8>,
+    #[serde(default)]
+    clue_order: Vec<usize>,
     inventory: Vec<Item>,
     hints_used: u8,
     answers: Vec<AnswerRecord>,
@@ -157,6 +191,30 @@ pub(crate) struct Change {
     feedback: Option<Feedback>,
 }
 
+const STATIONS: [Station; 10] = [
+    Station::Desk,
+    Station::Book,
+    Station::Clock,
+    Station::Window,
+    Station::Chair,
+    Station::Plant,
+    Station::Box,
+    Station::Lamp,
+    Station::Board,
+    Station::Rug,
+];
+const REWARDS: [Item; 10] = [
+    Item::Paper4,
+    Item::Paper7,
+    Item::Paper2,
+    Item::Paper3,
+    Item::Paper5,
+    Item::Paper6,
+    Item::Paper8,
+    Item::Paper9,
+    Item::Paper0,
+    Item::Paper1,
+];
 const CLUES: [Item; 3] = [Item::Paper4, Item::Paper7, Item::Paper2];
 
 fn sample(index: usize) -> Question {
@@ -168,7 +226,7 @@ fn sample(index: usize) -> Question {
             vec!["8", "12", "15"],
             vec![1],
         )
-    } else {
+    } else if index == 1 {
         (
             "escape-book-sample",
             "Những hình nào có bốn cạnh?",
@@ -176,9 +234,50 @@ fn sample(index: usize) -> Question {
             vec!["Hình vuông", "Hình tam giác", "Hình chữ nhật"],
             vec![0, 2],
         )
+    } else {
+        let samples = [
+            (
+                "Một giờ có bao nhiêu phút?",
+                "60 phút.",
+                vec!["30", "60", "100"],
+            ),
+            (
+                "Hành tinh nào là nơi chúng ta sinh sống?",
+                "Trái Đất.",
+                vec!["Sao Hỏa", "Trái Đất", "Sao Kim"],
+            ),
+            ("7 × 8 bằng bao nhiêu?", "56.", vec!["54", "56", "64"]),
+            (
+                "Bộ phận nào của cây hút nước từ đất?",
+                "Rễ cây.",
+                vec!["Lá", "Rễ", "Hoa"],
+            ),
+            (
+                "Một tam giác có bao nhiêu cạnh?",
+                "3 cạnh.",
+                vec!["2", "3", "4"],
+            ),
+            (
+                "Từ nào trái nghĩa với sáng?",
+                "Tối.",
+                vec!["Trắng", "Tối", "Cao"],
+            ),
+            (
+                "Nước đóng băng ở bao nhiêu độ C?",
+                "0 độ C.",
+                vec!["10", "0", "100"],
+            ),
+            (
+                "Một tuần có bao nhiêu ngày?",
+                "7 ngày.",
+                vec!["5", "7", "10"],
+            ),
+        ];
+        let (text, answer, options) = samples[(index - 2) % samples.len()].clone();
+        ("escape-extra-sample", text, answer, options, vec![1])
     };
     Question {
-        id: id.into(),
+        id: format!("{id}-{index}"),
         text: text.into(),
         answer: Some(answer.into()),
         options: options.into_iter().map(str::to_owned).collect(),
@@ -188,6 +287,24 @@ fn sample(index: usize) -> Question {
 }
 
 impl EscapeSession {
+    fn required_clues(&self) -> &[Item] {
+        if self.clue_values.is_empty() {
+            &CLUES
+        } else {
+            &REWARDS[..self.questions.len()]
+        }
+    }
+    fn safe_code(&self) -> String {
+        if self.clue_values.is_empty() {
+            "472".into()
+        } else {
+            self.clue_order
+                .iter()
+                .map(|&i| char::from(b'0' + self.clue_values[i]))
+                .collect()
+        }
+    }
+
     fn acquire(&mut self, item: Item) {
         if !self.inventory.contains(&item) {
             self.inventory.push(item);
@@ -254,10 +371,14 @@ impl EscapeSession {
                 mut selected,
                 manual,
             } => {
-                let (index, item) = match station {
-                    Station::Desk => (0, Item::Paper4),
-                    Station::Book => (1, Item::Paper7),
-                };
+                let index = STATIONS
+                    .iter()
+                    .position(|s| *s == station)
+                    .unwrap();
+                if index >= self.questions.len() {
+                    return Err("Vị trí câu hỏi không có trong phiên chơi.".into());
+                }
+                let item = REWARDS[index];
                 if self.inventory.contains(&item) {
                     return Ok(None);
                 }
@@ -295,6 +416,9 @@ impl EscapeSession {
                     Some(Feedback::Incorrect)
                 }
             }
+            Action::Clock { .. } if !self.clue_values.is_empty() => {
+                return Err("Hãy trả lời câu hỏi tại đồng hồ để nhận manh mối.".into());
+            }
             Action::Clock {
                 hour: 3,
                 minute: 15,
@@ -303,10 +427,15 @@ impl EscapeSession {
                 Some(Feedback::Correct)
             }
             Action::Clock { .. } => Some(Feedback::WrongTime),
-            Action::Safe { .. } if !CLUES.iter().all(|item| self.inventory.contains(item)) => {
+            Action::Safe { .. }
+                if !self
+                    .required_clues()
+                    .iter()
+                    .all(|item| self.inventory.contains(item)) =>
+            {
                 Some(Feedback::MissingClues)
             }
-            Action::Safe { code } if code == "472" => {
+            Action::Safe { code } if code == self.safe_code() => {
                 self.acquire(Item::Key);
                 Some(Feedback::Correct)
             }
@@ -345,7 +474,7 @@ pub(crate) fn start_with_questions(
     db: &mut Connection,
     class: &str,
     mut config: Config,
-    questions: Option<[Question; 2]>,
+    questions: Option<Vec<Question>>,
 ) -> Result<EscapeSession> {
     config.validate()?;
     let tx = db
@@ -359,18 +488,77 @@ pub(crate) fn start_with_questions(
     if active {
         return Err("Hãy tiếp tục hoặc bỏ phiên đang dở của lớp này.".into());
     }
-    let questions = match questions {
-        Some(questions) => questions,
-        None => {
-            let bank = db::question_plan(&tx, class)?.bank;
-            let question = |id: &Option<String>, index| match id {
-                Some(id) => bank.iter().find(|query| &query.id == id).cloned()
-                    .ok_or("Câu hỏi không còn trong ngân hàng của lớp."),
-                None => Ok(sample(index)),
-            };
-            [question(&config.desk_question_id, 0)?, question(&config.book_question_id, 1)?]
+    let count = config.question_count.unwrap_or(3);
+    let questions =
+        match questions {
+            Some(mut questions) => {
+                if questions.len() < count {
+                    // Older saved presets supplied only two questions.
+                    if config.question_count.is_some() {
+                        return Err("Nguồn câu hỏi ít hơn số vị trí đã chọn.".into());
+                    }
+                    while questions.len() < count {
+                        questions.push(sample(questions.len()));
+                    }
+                }
+                questions.truncate(count);
+                questions
+            }
+            None => {
+                let bank = db::question_plan(&tx, class)?.bank;
+                (0..count)
+                    .map(|index| {
+                        let id =
+                            config.question_ids.get(index).cloned().flatten().or_else(
+                                || match index {
+                                    0 => config.desk_question_id.clone(),
+                                    1 => config.book_question_id.clone(),
+                                    _ => None,
+                                },
+                            );
+                        match id {
+                            Some(id) => bank
+                                .iter()
+                                .find(|query| query.id == id)
+                                .cloned()
+                                .ok_or_else(|| {
+                                    "Câu hỏi không còn trong ngân hàng của lớp.".to_string()
+                                }),
+                            None => Ok(sample(index)),
+                        }
+                    })
+                    .collect::<Result<Vec<_>>>()?
+            }
+        };
+    let previous = tx.query_row("SELECT snapshot FROM escape_sessions WHERE classroom_id=?1 ORDER BY started_at DESC, rowid DESC LIMIT 1", [class], read).optional().map_err(db::storage)?;
+    let mut rng = rand::rng();
+    let mut digits: Vec<u8> = (0..10).collect();
+    let mut clue_order: Vec<usize> = (0..count).collect();
+    loop {
+        digits.shuffle(&mut rng);
+        if previous
+            .as_ref()
+            .is_none_or(|old| old.clue_values.iter().zip(&digits).all(|(a, b)| a != b))
+        {
+            break;
         }
-    };
+    }
+    loop {
+        clue_order.shuffle(&mut rng);
+        let code: String = clue_order
+            .iter()
+            .map(|&i| char::from(b'0' + digits[i]))
+            .collect();
+        if clue_order != (0..count).collect::<Vec<_>>()
+            && previous
+                .as_ref()
+                .is_none_or(|old| old.clue_order != clue_order && old.safe_code() != code)
+        {
+            break;
+        }
+    }
+    let clue_values = digits[..count].to_vec();
+    config.question_count = Some(count);
     let session = EscapeSession {
         id: Uuid::new_v4().to_string(),
         classroom_id: class.into(),
@@ -383,6 +571,8 @@ pub(crate) fn start_with_questions(
         elapsed_ms: 0,
         revision: 0,
         questions,
+        clue_values,
+        clue_order,
         inventory: Vec::new(),
         hints_used: 0,
         answers: Vec::new(),
@@ -445,9 +635,21 @@ pub(crate) fn escape_start(
 #[tauri::command]
 pub(crate) fn escape_restart(data: State<Data>, session_id: String) -> Result<EscapeSession> {
     data.access(|db| {
-        let previous = db.query_row("SELECT snapshot FROM escape_sessions WHERE id=?1", [&session_id], read)
-            .optional().map_err(db::storage)?.ok_or("Không tìm thấy phiên chơi.")?;
-        start_with_questions(db, &previous.classroom_id, previous.config, Some(previous.questions))
+        let previous = db
+            .query_row(
+                "SELECT snapshot FROM escape_sessions WHERE id=?1",
+                [&session_id],
+                read,
+            )
+            .optional()
+            .map_err(db::storage)?
+            .ok_or("Không tìm thấy phiên chơi.")?;
+        start_with_questions(
+            db,
+            &previous.classroom_id,
+            previous.config,
+            Some(previous.questions),
+        )
     })
 }
 
@@ -483,6 +685,8 @@ mod tests {
             wrong_answer: WrongAnswer::TimePenalty,
             desk_question_id: None,
             book_question_id: None,
+            question_count: Some(3),
+            question_ids: vec![],
         }
     }
 
@@ -511,12 +715,109 @@ mod tests {
     }
 
     #[test]
+    fn variable_rooms_require_every_question_and_randomize_each_round() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("variable.sqlite");
+        let mut db = db::open(&path).unwrap();
+        let class = classroom(&mut db);
+        for count in 3..=10 {
+            let mut settings = config(None);
+            settings.question_count = Some(count);
+            let mut room = start(&mut db, &class, settings.clone()).unwrap();
+            assert_eq!(room.questions.len(), count);
+            let mut values = room.clue_values.clone();
+            values.sort();
+            values.dedup();
+            assert_eq!(values.len(), count);
+            let mut order = room.clue_order.clone();
+            order.sort();
+            assert_eq!(order, (0..count).collect::<Vec<_>>());
+            assert_ne!(room.clue_order, order);
+            assert!(change(
+                &mut db,
+                &room.id,
+                room.revision,
+                0,
+                Action::Clock {
+                    hour: 3,
+                    minute: 15
+                }
+            )
+            .is_err());
+            if count < 10 {
+                assert!(change(
+                    &mut db,
+                    &room.id,
+                    room.revision,
+                    0,
+                    answer(STATIONS[count], &[1])
+                )
+                .is_err());
+            }
+            let code = room.safe_code();
+            for (index, station) in STATIONS.iter().take(count).enumerate() {
+                assert_eq!(
+                    send(&mut db, &mut room, 0, Action::Safe { code: code.clone() }),
+                    Some(Feedback::MissingClues)
+                );
+                let selected = room.questions[index].correct_options.clone();
+                assert_eq!(
+                    send(&mut db, &mut room, 0, answer(*station, &selected)),
+                    Some(Feedback::Correct)
+                );
+            }
+            assert_eq!(room.correct as usize, count);
+            let wrong = format!(
+                "{}{}",
+                if code.starts_with('0') { "1" } else { "0" },
+                &code[1..]
+            );
+            assert_eq!(
+                send(&mut db, &mut room, 0, Action::Safe { code: wrong }),
+                Some(Feedback::WrongCode)
+            );
+            assert_eq!(
+                send(&mut db, &mut room, 0, Action::Safe { code: code.clone() }),
+                Some(Feedback::Correct)
+            );
+            send(&mut db, &mut room, 0, Action::Exit);
+            assert_eq!(room.status, Status::Completed);
+            drop(db);
+            db = db::open(&path).unwrap();
+            let restored = list(&db, Some(&class)).unwrap().remove(0);
+            assert_eq!(restored.safe_code(), code);
+            let mut next =
+                start_with_questions(&mut db, &class, settings, Some(restored.questions)).unwrap();
+            assert_ne!(next.clue_order, room.clue_order);
+            assert_ne!(next.safe_code(), code);
+            assert!(next
+                .clue_values
+                .iter()
+                .zip(room.clue_values)
+                .all(|(a, b)| *a != b));
+            send(&mut db, &mut next, 0, Action::Abandon);
+        }
+        for count in [0, 2, 11] {
+            let mut settings = config(None);
+            settings.question_count = Some(count);
+            assert!(start(&mut db, &class, settings).is_err());
+        }
+    }
+
+    #[test]
     fn complete_room_with_wrong_attempts_inventory_gates_and_history() {
         let temp = tempfile::tempdir().unwrap();
         let path = temp.path().join("data.sqlite");
         let mut db = db::open(&path).unwrap();
         let class = classroom(&mut db);
         let mut room = start(&mut db, &class, config(Some(5))).unwrap();
+        room.clue_values.clear();
+        room.clue_order.clear();
+        db.execute(
+            "UPDATE escape_sessions SET snapshot=?2 WHERE id=?1",
+            params![room.id, snapshot(&room).unwrap()],
+        )
+        .unwrap();
         assert!(start(&mut db, &class, config(None)).is_err());
         assert_eq!(
             send(&mut db, &mut room, 100, Action::Safe { code: "472".into() }),

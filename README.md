@@ -69,7 +69,7 @@ Trong **Chuẩn bị câu hỏi**, chọn **Tải Excel mẫu**, sau đó nhập
 
 ## Căn phòng bí ẩn
 
-Trong chương **Bí mật phòng học cũ**, cả lớp trả lời câu hỏi và khám phá các đồ vật để thu thập manh mối. Dùng manh mối để mở két, lấy chìa khóa và thoát khỏi căn phòng. Giáo viên có thể chọn câu hỏi của lớp, đặt thời lượng và bật gợi ý. Tiến độ được lưu để có thể tạm dừng và tiếp tục sau.
+Trong chương **Bí mật phòng học cũ**, cả lớp trả lời câu hỏi và khám phá các đồ vật để thu thập manh mối. Dùng manh mối để mở két, lấy chìa khóa và thoát khỏi căn phòng. Giáo viên có thể chọn từ 3 đến 10 câu hỏi, với số vị trí khám phá tương ứng. Bấm vị trí trên ảnh thiết lập để gán câu hỏi của lớp hoặc dùng câu mẫu. Mỗi câu đúng cho một chữ số; thứ tự và giá trị manh mối đổi ngẫu nhiên mỗi lượt, không trùng chữ số và tránh lặp lượt trước. Bức tranh chỉ thứ tự nhập mật mã để mở két. Có thể đặt thời lượng và bật gợi ý. Tiến độ được lưu để có thể tạm dừng và tiếp tục sau.
 
 ## Chuẩn bị nhiều cấu hình cho một lớp
 

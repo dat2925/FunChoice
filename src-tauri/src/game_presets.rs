@@ -193,8 +193,11 @@ fn save(
             }
         }
         Game::Escape { settings } => {
-            if questions.len() == 1 {
-                return Err("Căn phòng bí ẩn cần hai câu hỏi hoặc dùng câu hỏi mẫu.".into());
+            if !questions.is_empty() && questions.len() < settings.question_count.unwrap_or(3) {
+                return Err(
+                    "Nguồn câu hỏi phải đủ số vị trí đã chọn (3–10 câu) hoặc dùng câu hỏi mẫu."
+                        .into(),
+                );
             }
             settings.prepare_preset(&title)?;
         }
@@ -284,11 +287,10 @@ pub(crate) fn start_escape_preset(
         let Game::Escape { settings } = preset.game else {
             return Err("Cấu hình này không phải Căn phòng bí ẩn.".into());
         };
-        let mut questions = preset.questions.into_iter();
-        let selected = match (questions.next(), questions.next()) {
-            (Some(desk), Some(book)) => Some([desk, book]),
-            (None, None) => None,
-            _ => return Err("Cấu hình phải có hai câu hỏi để mở căn phòng.".into()),
+        let selected = if preset.questions.is_empty() {
+            None
+        } else {
+            Some(preset.questions)
         };
         escape_room::start_with_questions(db, &classroom_id, settings, selected)
     })

@@ -7,14 +7,14 @@ import QuestionImages from '../../QuestionImages'
 import { errorText } from '../../Modal'
 import roomArt from '../../assets/escape-classroom.png'
 import { createRoomAudio } from './audio'
-import { chapter, clockClue, escapeApi, formatTime, hints, isActive, items, objects, paintingClue, roomHeight, roomObjects, roomWidth,
-  type EscapeAction, type EscapeChange, type EscapeSession, type Feedback, type Item, type RoomObject } from './model'
+import { chapter, clockClue, escapeApi, formatTime, hints, isActive, sessionItems, sessionStations, sessionObjects, orderClue, objects, roomHeight, roomWidth,
+  type EscapeAction, type EscapeChange, type EscapeSession, type Feedback, type Item, type Station, type RoomObject } from './model'
 
 const RoomScene = lazy(() => import('./RoomScene'))
 const clueItems: Item[] = ['paper4', 'paper7', 'paper2']
 const feedbackText: Record<Feedback, string> = {
   correct: 'Chính xác! Manh mối đã được thêm vào túi đồ.', incorrect: 'Chưa chính xác. Hãy thảo luận và thử lại.',
-  wrongTime: 'Kim đồng hồ chưa đúng vị trí.', missingClues: 'Hãy tìm đủ ba mảnh giấy trước khi mở két.',
+  wrongTime: 'Kim đồng hồ chưa đúng vị trí.', missingClues: 'Hãy giải đủ câu hỏi và thu thập các mảnh giấy trước khi mở két.',
   wrongCode: 'Mật mã chưa đúng. Kiểm tra lại thứ tự các mảnh giấy.', needKey: 'Cửa đang khóa. Hãy tìm chìa khóa.',
   hint: 'Đã lưu gợi ý vào sổ tay.', expired: 'Đã hết thời gian giải đố.',
 }
@@ -73,17 +73,17 @@ function ClockPuzzle({ busy, submit }: { busy: boolean; submit: (hour: number, m
   </form>
 }
 
-function Keypad({ busy, error, attempt, tap, submit }: { busy: boolean; error: boolean; attempt: number; tap: () => void; submit: (code: string) => void }) {
+function Keypad({ length, busy, error, attempt, tap, submit }: { length: number; busy: boolean; error: boolean; attempt: number; tap: () => void; submit: (code: string) => void }) {
   const [code, setCode] = useState('')
-  return <form className="escape-challenge" onSubmit={(event) => { event.preventDefault(); if (code.length === 3) submit(code) }}>
-    <label>Mật mã két<input className={'escape-code ' + (error ? 'escape-shake' : '')} key={attempt} value={code} inputMode="numeric" pattern="[0-9]{3}" maxLength={3}
-      onChange={(event) => { tap(); setCode(event.target.value.replace(/\D/g, '').slice(0, 3)) }}/></label>
-    <div className="escape-keypad">{'123456789'.split('').map((digit) => <button key={digit} type="button" onClick={() => { tap(); setCode((value) => (value + digit).slice(0, 3)) }}>{digit}</button>)}
+  return <form className="escape-challenge" onSubmit={(event) => { event.preventDefault(); if (code.length === length) submit(code) }}>
+    <label>Mật mã két<input className={'escape-code ' + (error ? 'escape-shake' : '')} key={attempt} value={code} inputMode="numeric" pattern={`[0-9]{${length}}`} maxLength={length}
+      onChange={(event) => { tap(); setCode(event.target.value.replace(/\D/g, '').slice(0, length)) }}/></label>
+    <div className="escape-keypad">{'123456789'.split('').map((digit) => <button key={digit} type="button" onClick={() => { tap(); setCode((value) => (value + digit).slice(0, length)) }}>{digit}</button>)}
       <button type="button" aria-label="Xóa số cuối" onClick={() => { tap(); setCode((value) => value.slice(0, -1)) }}>⌫</button>
-      <button type="button" onClick={() => { tap(); setCode((value) => (value + '0').slice(0, 3)) }}>0</button>
+      <button type="button" onClick={() => { tap(); setCode((value) => (value + '0').slice(0, length)) }}>0</button>
       <button type="button" onClick={() => setCode('')}>Xóa</button>
     </div>
-    <button type="submit" className="button primary" disabled={busy || code.length !== 3}>Mở két</button>
+    <button type="submit" className="button primary" disabled={busy || code.length !== length}>Mở két</button>
   </form>
 }
 
@@ -106,11 +106,17 @@ function ResultScreen({ session, back, replay, busy, error }: { session: EscapeS
 
 export default function EscapePlay({ initial, back, replay }: { initial: EscapeSession; back: () => void; replay: (session: EscapeSession) => void }) {
   const [session, setSession] = useState(initial)
+  const items = sessionItems(session)
+  const paintingClue = orderClue(session)
+  const roomObjects = sessionObjects(session)
+  const activeStations = sessionStations(session)
+  const activeClues = session.clueValues?.length ? activeStations.map((station) => objects[station].item!) : clueItems
   const current = useRef(initial)
   const checkpoint = useRef(performance.now())
   const queue = useRef(Promise.resolve())
   const mounted = useRef(true)
   const [active, setActive] = useState<RoomObject>()
+  const stationIndex = active ? activeStations.indexOf(active as Station) : -1
   const [hover, setHover] = useState<RoomObject>()
   const [item, setItem] = useState<Item>()
   const [notebook, setNotebook] = useState(false)
@@ -223,16 +229,16 @@ export default function EscapePlay({ initial, back, replay }: { initial: EscapeS
 
   if (!isActive(session) && !animating) return <ResultScreen session={session} back={back} replay={() => void restart()} busy={busy} error={error}/>
   const paused = session.status === 'paused'
-  const clues = clueItems.filter((entry) => session.inventory.includes(entry)).length
+  const clues = activeClues.filter((entry) => session.inventory.includes(entry)).length
   const solved = roomObjects.filter((target) => { const reward = objects[target].item; return reward && session.inventory.includes(reward) }).length
   const reward = active ? objects[active].item : undefined
   const acquired = reward && session.inventory.includes(reward)
   const detail = !paused && !animating && (active || item || notebook)
-  const questionDetail = !acquired && (active === 'desk' || (active === 'book' && bookOpen))
+  const questionDetail = !acquired && (stationIndex >= 0 && (active !== 'book' || bookOpen))
 
   return <div className="escape-play">
     <header className="escape-head">
-      <div><p>{chapter}</p><h1>{session.config.name}</h1><p>{session.classroomName} · Tiến độ {solved + Number(animating)}/6 · {clues}/3 mảnh mật mã</p></div>
+      <div><p>{chapter}</p><h1>{session.config.name}</h1><p>{session.classroomName} · Tiến độ {solved + Number(animating)}/{roomObjects.length} · {clues}/{activeClues.length} mảnh mật mã</p></div>
       <div className="toolbar-actions"><span className={'escape-time ' + (session.remainingMs !== null && session.remainingMs <= 30_000 ? 'urgent' : '')} aria-label="Thời gian còn lại"><Clock3 size={18}/>{session.remainingMs === null ? 'Không giới hạn' : formatTime(session.remainingMs)}</span>
         <button className="button play-button" disabled={busy || animating} onClick={() => void submit({ type: paused ? 'resume' : 'pause' })}><Pause size={17}/>{paused ? 'Tiếp tục' : 'Tạm dừng'}</button>
         <button className="button play-button" aria-pressed={full} onClick={() => void toggleFullscreen()}><Maximize size={17}/> {full ? 'Thoát toàn màn hình' : 'Toàn màn hình'}</button></div>
@@ -263,11 +269,11 @@ export default function EscapePlay({ initial, back, replay }: { initial: EscapeS
           <button className="icon-button" aria-label="Đóng chi tiết" onClick={closeDetail}><X size={19}/></button></div>
         {active === 'painting' ? <><p>{paintingClue}</p><button className="button primary" disabled={busy || !!acquired} onClick={() => void submit({ type: 'painting' })}>{acquired ? 'Đã lưu trong sổ tay' : 'Lưu ghi chú'}</button></>
           : acquired ? <p>{items[reward].description}</p>
-          : active === 'desk' || (active === 'book' && bookOpen) ? <Challenge key={active} question={session.questions[active === 'desk' ? 0 : 1]} busy={busy}
-            submit={(selected, manual) => void submit({ type: 'answer', station: active, selected, manual })}/>
+          : questionDetail ? <Challenge key={active} question={session.questions[stationIndex]} busy={busy}
+            submit={(selected, manual) => void submit({ type: 'answer', station: active as Station, selected, manual })}/>
           : active === 'book' ? <><p>Một cuốn sách phát sáng trên giá.</p><button className="button primary" onClick={() => { audio.play('book'); setBookOpen(true) }}><BookOpen size={17}/> Mở cuốn sách phát sáng</button></>
-          : active === 'clock' ? <ClockPuzzle busy={busy} submit={(hour, minute) => void submit({ type: 'clock', hour, minute })}/>
-          : active === 'safe' ? clues < 3 ? <p>Hãy tìm đủ ba mảnh giấy trước khi mở két.</p> : <Keypad busy={busy} error={feedback === 'wrongCode'} attempt={attempt} tap={() => audio.play('keypad')} submit={(code) => void submit({ type: 'safe', code })}/>
+          : active === 'clock' && !session.clueValues?.length ? <ClockPuzzle busy={busy} submit={(hour, minute) => void submit({ type: 'clock', hour, minute })}/>
+          : active === 'safe' ? clues < activeClues.length ? <p>Hãy giải đủ câu hỏi và thu thập các mảnh giấy trước khi mở két.</p> : <Keypad length={activeClues.length} busy={busy} error={feedback === 'wrongCode'} attempt={attempt} tap={() => audio.play('keypad')} submit={(code) => void submit({ type: 'safe', code })}/>
           : active === 'door' ? session.inventory.includes('key') ? <button className="button primary" disabled={busy} onClick={() => { audio.play('lock'); void submit({ type: 'exit' }) }}><KeyRound size={17}/> Dùng chìa khóa</button> : <p>Cửa đang khóa. Hãy tìm chìa khóa.</p>
           : item ? <p>{items[item].description}</p>
           : <div className="escape-notes">{!session.hintsUsed && !session.inventory.includes('paintingNote') && <p className="muted">Chưa có ghi chú.</p>}

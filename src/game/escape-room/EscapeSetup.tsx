@@ -4,7 +4,7 @@ import { api, type Classroom, type Question, type School } from '../../api'
 import roomArt from '../../assets/escape-classroom.png'
 import { errorText } from '../../Modal'
 import EscapeRules from './EscapeRules'
-import { chapter, defaultEscapeConfig, escapeApi, formatTime, isActive, type EscapeSession } from './model'
+import { stations, objects, roomWidth, roomHeight, chapter, defaultEscapeConfig, escapeApi, formatTime, isActive, type EscapeSession } from './model'
 
 export default function EscapeSetup({ school, classroom, back, open }: {
   school: School; classroom: Classroom; back: () => void
@@ -53,7 +53,7 @@ export default function EscapeSetup({ school, classroom, back, open }: {
   }, [selectedClass, retry])
 
   function resetSelection() {
-    setConfig((current) => ({ ...current, deskQuestionId: null, bookQuestionId: null }))
+    setConfig((current) => ({ ...current, deskQuestionId: null, bookQuestionId: null, questionIds: [] }))
     setError(''); setLoadError(''); setBank([]); setPending(undefined); setLoading(true)
   }
 
@@ -72,7 +72,12 @@ export default function EscapeSetup({ school, classroom, back, open }: {
     <button type="button" className="text-button" onClick={back}><ArrowLeft size={16}/> Chọn trò chơi</button>
     <div className="page-heading"><div><h1>Căn phòng bí ẩn</h1><p>Cả lớp cùng giải đố · {chapter}</p></div></div>
     <div className="escape-setup-grid">
-      <figure className="escape-cover panel"><img src={roomArt} alt="Phòng học cổ có bàn gỗ, tủ sách, đồng hồ, tranh, két sắt và cửa thoát hiểm"/>
+      <figure className="escape-cover panel"><div className="escape-setup-map"><img src={roomArt} alt="Phòng học cổ có bàn gỗ, tủ sách, đồng hồ, tranh, két sắt và cửa thoát hiểm"/>
+        {stations.slice(0, config.questionCount ?? 3).map((station, index) => {
+          const [x, y, w, h] = objects[station].bounds
+          return <button type="button" key={station} className="escape-object" aria-label={`${index + 1}. ${objects[station].label}`} title={objects[station].label} style={{ left: `${x / roomWidth * 100}%`, top: `${y / roomHeight * 100}%`, width: `${w / roomWidth * 100}%`, height: `${h / roomHeight * 100}%` }}
+            onClick={() => document.getElementById(`escape-question-${station}`)?.focus()}><span>{index + 1}</span></button>
+        })}</div>
         <figcaption><DoorOpen size={21}/> Khám phá căn phòng, giải mật mã và tìm đường thoát hiểm.</figcaption>
       </figure>
       <form className="panel setup-panel escape-setup-form" onSubmit={(event) => { event.preventDefault(); void start() }}>
@@ -89,11 +94,16 @@ export default function EscapeSetup({ school, classroom, back, open }: {
         <EscapeRules config={config} change={setConfig}/>
         <div className="escape-question-selection">
           <h3><BookOpen size={17}/> Câu hỏi trong phòng</h3>
+          <p className="muted">Bấm vị trí trên ảnh để chọn câu hỏi cho chỗ đó. Mỗi câu đúng nhận một chữ số; thứ tự và giá trị manh mối đổi ngẫu nhiên mỗi lượt.</p>
           {!selectedClass && <p className="muted">Chọn trường có ít nhất một lớp để bắt đầu.</p>}
           {selectedClass && loading && <p role="status">Đang tải câu hỏi và tiến trình…</p>}
-          {selectedClass && !loading && !bank.length && !loadError && <p className="muted">Lớp chưa có câu hỏi. Phòng sẽ dùng hai câu mẫu.</p>}
-          {(['deskQuestionId', 'bookQuestionId'] as const).map((field) => <label key={field}>{field === 'deskQuestionId' ? 'Câu hỏi bàn học' : 'Câu hỏi tủ sách'}
-            <select value={config[field] ?? ''} disabled={loading || busy} onChange={(event) => setConfig({ ...config, [field]: event.target.value || null })}>
+          {selectedClass && !loading && !bank.length && !loadError && <p className="muted">Lớp chưa có câu hỏi. Phòng sẽ dùng câu hỏi mẫu cho từng vị trí.</p>}
+          {stations.slice(0, config.questionCount ?? 3).map((station, index) => <label key={station}>{index + 1}. Câu hỏi {objects[station].label.toLowerCase()}
+            <select id={`escape-question-${station}`} value={config.questionIds?.[index] ?? ''} disabled={loading || busy} onChange={(event) => {
+              const questionIds = [...(config.questionIds ?? [])]
+              questionIds[index] = event.target.value || null
+              setConfig({ ...config, questionIds })
+            }}>
               <option value="">Dùng câu hỏi mẫu</option>{bank.map((question) => <option key={question.id} value={question.id}>{question.text.slice(0, 120)}</option>)}
             </select></label>)}
         </div>

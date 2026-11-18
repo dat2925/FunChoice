@@ -2,6 +2,9 @@ import type { EscapeConfig } from './model'
 
 export default function EscapeRules({ config, change }: { config: EscapeConfig; change: (config: EscapeConfig) => void }) {
   return <>
+    <label>Số câu hỏi<select value={config.questionCount ?? 3} onChange={(event) => change({ ...config, questionCount: Number(event.target.value) })}>
+      {Array.from({ length: 8 }, (_, i) => i + 3).map((n) => <option key={n} value={n}>{n} câu · {n} vị trí</option>)}
+    </select></label>
     <label>Thời lượng<select value={config.limitMinutes ?? ''} onChange={(event) => change({ ...config, limitMinutes: Number(event.target.value) || null })}>
       {[5, 10, 15, 20].map((time) => <option key={time} value={time}>{time} phút</option>)}<option value="">Không giới hạn</option>
     </select></label>
