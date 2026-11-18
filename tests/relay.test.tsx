@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { api, type Student } from '../src/api'
 import Relay from '../src/Relay'
+
+beforeEach(() => { vi.spyOn(api, 'exams').mockResolvedValue([]) })
 
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 

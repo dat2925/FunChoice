@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { api } from '../src/api'
 import EscapeSetup from '../src/game/escape-room/EscapeSetup'
 import EscapePlay from '../src/game/escape-room/EscapePlay'
@@ -11,6 +11,8 @@ vi.mock('../src/game/escape-room/RoomScene', async () => {
   const { useEffect } = await import('react')
   return { default: ({ ready }: { ready: () => void }) => { useEffect(ready, [ready]); return null } }
 })
+beforeEach(() => { vi.spyOn(api, 'exams').mockResolvedValue([]) })
+
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 const school = { id: 'school', name: 'Hoa Sen', count: 1, theme: 'city' as const }
 const classroom = { id: 'class', schoolId: school.id, name: '5A', count: 1 }
@@ -31,7 +33,7 @@ it('cho chọn 3–10 vị trí, bấm ảnh để chọn câu hỏi và giữ g
   for (let count = 3; count <= 10; count++) {
     fireEvent.change(screen.getByLabelText('Số câu hỏi'), { target: { value: String(count) } })
     expect(document.querySelectorAll('.escape-setup-map button')).toHaveLength(count)
-    expect(document.querySelectorAll('.escape-question-selection select')).toHaveLength(count)
+    expect(document.querySelectorAll('.escape-question-selection select[id^="escape-question-"]')).toHaveLength(count)
   }
   fireEvent.click(screen.getByRole('button', { name: '10. Tấm thảm' }))
   const rugQuestion = screen.getByLabelText('10. Câu hỏi tấm thảm')

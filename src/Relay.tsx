@@ -1,7 +1,9 @@
 import { ArrowLeft, ArrowRight, BookOpen, Flag, Play, Shield, Star, Trophy, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { api, type Classroom, type Question, type Student } from './api'
+import { api, type Classroom, type Exam, type Question, type Student } from './api'
 import { errorText } from './Modal'
+import ExamSelect from './ExamSelect'
+import QuestionOrderPicker from './QuestionOrderPicker'
 import ProductBrand from './ProductBrand'
 import QuestionCard, { canGradeQuestion } from './QuestionCard'
 import RelaySettings, { defaultRelayConfig, relayTeams, shuffle, type RelayConfig } from './RelaySettings'
@@ -23,6 +25,9 @@ export default function Relay({ classroom, students, back, openQuestions, onMatc
 }) {
   const [config, setConfig] = useState(defaultRelayConfig)
   const [bank, setBank] = useState<Question[]>()
+  const [exams, setExams] = useState<Exam[]>([])
+  const [examId, setExamId] = useState<string | null>(null)
+  const [questionIds, setQuestionIds] = useState<string[] | null>(null)
   const [error, setError] = useState('')
   const [match, setMatch] = useState(() => prepared
     ? newMatch(relayTeams(students, prepared.config), prepared.config.rounds, prepared.questions) : undefined)
@@ -35,8 +40,10 @@ export default function Relay({ classroom, students, back, openQuestions, onMatc
   const teams = relayTeams(students, configured)
   const teamCount = teams.length
   const roundCount = config.rounds ?? Math.max(1, ...teams.map((team) => team.members.length))
+  const available = examId ? exams.find((exam) => exam.id === examId)?.questions ?? [] : bank ?? []
+  const selectedQuestions = questionIds === null ? available : questionIds.flatMap((id) => available.filter((q) => q.id === id))
   const canStart = students.length >= 2 && Number.isSafeInteger(roundCount * teamCount) && Number.isInteger(roundCount)
-    && roundCount > 0 && teams.every((team) => team.name && team.members.length) && !!bank?.length
+    && roundCount > 0 && teams.every((team) => team.name && team.members.length) && !!selectedQuestions.length
   const matchActive = !!match
 
   useEffect(() => {
@@ -47,14 +54,14 @@ export default function Relay({ classroom, students, back, openQuestions, onMatc
   useEffect(() => {
     if (prepared) return
     let current = true
-    void api.questionPlan(classroom.id).then((plan) => { if (current) setBank(plan.bank) })
+    void Promise.all([api.questionPlan(classroom.id), api.exams(classroom.id)]).then(([plan, papers]) => { if (current) { setBank(plan.bank); setExams(papers) } })
       .catch((cause) => { if (current) setError(errorText(cause)) })
     return () => { current = false }
   }, [classroom.id, prepared])
 
   function start() {
-    if (!canStart || !bank) return
-    setMatch(newMatch(teams, roundCount, shuffle(bank)))
+    if (!canStart) return
+    setMatch(newMatch(teams, roundCount, shuffle(selectedQuestions)))
   }
 
   function leaveMatch() {
@@ -142,7 +149,12 @@ export default function Relay({ classroom, students, back, openQuestions, onMatc
     <div className="page-heading"><div><h1>Tiếp sức đấu đội</h1><p>{classroom.name} · {students.length} học sinh đang hoạt động</p></div></div>
     {error && <div className="alert" role="alert">{error}</div>}
     <RelaySettings students={students} config={configured} change={setConfig} maxTeams={maxTeams}>
-      <p className="hint">{bank?.length ? bank.length + ' câu hỏi được xáo thứ tự khi bắt đầu. Câu hỏi được dùng lại khi đã hết ngân hàng.' : bank || error ? 'Hãy thêm hoặc nhập câu hỏi để bắt đầu.' : 'Đang tải ngân hàng câu hỏi…'} <button className="text-button" onClick={openQuestions}>Chuẩn bị câu hỏi</button></p>
+      <ExamSelect exams={exams} value={examId} disabled={!bank} change={(id) => { setExamId(id); setQuestionIds(null) }}/>
+      <label>Câu hỏi sử dụng<select value={questionIds === null ? 'all' : 'selected'} disabled={!bank} onChange={(event) => setQuestionIds(event.target.value === 'all' ? null : [])}>
+        <option value="all">Dùng toàn bộ câu hỏi trong nguồn đã chọn</option><option value="selected">Chọn từng câu hỏi</option>
+      </select></label>
+      {questionIds !== null && <QuestionOrderPicker questions={available} selected={questionIds} change={setQuestionIds}/> }
+      <p className="hint">{selectedQuestions.length ? selectedQuestions.length + ' câu hỏi được xáo thứ tự khi bắt đầu. Câu hỏi được dùng lại khi đã hết danh sách đã chọn.' : bank || error ? 'Hãy thêm hoặc nhập câu hỏi để bắt đầu.' : 'Đang tải ngân hàng câu hỏi…'} <button className="text-button" onClick={openQuestions}>Chuẩn bị câu hỏi</button></p>
     </RelaySettings>
     <div className="start-strip"><span>{teams.some((team) => !team.members.length) ? 'Mỗi đội cần ít nhất một thành viên.' : roundCount + ' vòng · ' + roundCount * teamCount + ' lượt thi đấu'}</span>
       <button className="button primary big" onClick={start} disabled={!canStart}><Play size={18}/> Bắt đầu tiếp sức</button>

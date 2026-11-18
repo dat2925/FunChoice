@@ -50,7 +50,7 @@ export const roomObjects = Object.keys(objects) as RoomObject[]
 export interface EscapeConfig {
   name: string; limitMinutes: number | null; sound: boolean; hints: boolean; wrongAnswer: 'retry' | 'timePenalty'
   deskQuestionId: string | null; bookQuestionId: string | null
-  questionCount?: number; questionIds?: (string | null)[]
+  examId?: string | null; questionCount?: number; questionIds?: (string | null)[]
 }
 export const defaultEscapeConfig: EscapeConfig = { name: 'Bí mật phòng học cũ', limitMinutes: 10, sound: true, hints: true,
   wrongAnswer: 'retry', questionCount: 3, questionIds: [], deskQuestionId: null, bookQuestionId: null }

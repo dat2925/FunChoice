@@ -53,6 +53,8 @@ pub(crate) struct Config {
     pub(crate) question_count: Option<usize>,
     #[serde(default)]
     question_ids: Vec<Option<String>>,
+    #[serde(default)]
+    exam_id: Option<String>,
 }
 
 impl Config {
@@ -78,6 +80,7 @@ impl Config {
         self.desk_question_id = None;
         self.book_question_id = None;
         self.question_ids.clear();
+        self.exam_id = None;
         self.validate()
     }
 }
@@ -371,10 +374,7 @@ impl EscapeSession {
                 mut selected,
                 manual,
             } => {
-                let index = STATIONS
-                    .iter()
-                    .position(|s| *s == station)
-                    .unwrap();
+                let index = STATIONS.iter().position(|s| *s == station).unwrap();
                 if index >= self.questions.len() {
                     return Err("Vị trí câu hỏi không có trong phiên chơi.".into());
                 }
@@ -489,47 +489,55 @@ pub(crate) fn start_with_questions(
         return Err("Hãy tiếp tục hoặc bỏ phiên đang dở của lớp này.".into());
     }
     let count = config.question_count.unwrap_or(3);
-    let questions =
-        match questions {
-            Some(mut questions) => {
-                if questions.len() < count {
-                    // Older saved presets supplied only two questions.
-                    if config.question_count.is_some() {
-                        return Err("Nguồn câu hỏi ít hơn số vị trí đã chọn.".into());
-                    }
-                    while questions.len() < count {
-                        questions.push(sample(questions.len()));
-                    }
+    let questions = match questions {
+        Some(mut questions) => {
+            if questions.len() < count {
+                // Older saved presets supplied only two questions.
+                if config.question_count.is_some() {
+                    return Err("Nguồn câu hỏi ít hơn số vị trí đã chọn.".into());
                 }
-                questions.truncate(count);
-                questions
+                while questions.len() < count {
+                    questions.push(sample(questions.len()));
+                }
             }
-            None => {
-                let bank = db::question_plan(&tx, class)?.bank;
-                (0..count)
-                    .map(|index| {
-                        let id =
-                            config.question_ids.get(index).cloned().flatten().or_else(
-                                || match index {
-                                    0 => config.desk_question_id.clone(),
-                                    1 => config.book_question_id.clone(),
-                                    _ => None,
-                                },
-                            );
-                        match id {
-                            Some(id) => bank
-                                .iter()
-                                .find(|query| query.id == id)
-                                .cloned()
-                                .ok_or_else(|| {
-                                    "Câu hỏi không còn trong ngân hàng của lớp.".to_string()
-                                }),
-                            None => Ok(sample(index)),
-                        }
-                    })
-                    .collect::<Result<Vec<_>>>()?
+            questions.truncate(count);
+            questions
+        }
+        None => {
+            let bank = match &config.exam_id {
+                Some(id) => crate::exams::find(&tx, class, id)?.questions,
+                None => db::question_plan(&tx, class)?.bank,
+            };
+            if config.exam_id.is_some() && bank.is_empty() {
+                return Err("Đề thi đã chọn chưa có câu hỏi.".into());
             }
-        };
+            (0..count)
+                .map(|index| {
+                    let id = config
+                        .question_ids
+                        .get(index)
+                        .cloned()
+                        .flatten()
+                        .or_else(|| match index {
+                            0 => config.desk_question_id.clone(),
+                            1 => config.book_question_id.clone(),
+                            _ => None,
+                        });
+                    match id {
+                        Some(id) => bank
+                            .iter()
+                            .find(|query| query.id == id)
+                            .cloned()
+                            .ok_or_else(|| {
+                                "Câu hỏi không còn trong ngân hàng của lớp.".to_string()
+                            }),
+                        None if config.exam_id.is_some() => Ok(bank[index % bank.len()].clone()),
+                        None => Ok(sample(index)),
+                    }
+                })
+                .collect::<Result<Vec<_>>>()?
+        }
+    };
     let previous = tx.query_row("SELECT snapshot FROM escape_sessions WHERE classroom_id=?1 ORDER BY started_at DESC, rowid DESC LIMIT 1", [class], read).optional().map_err(db::storage)?;
     let mut rng = rand::rng();
     let mut digits: Vec<u8> = (0..10).collect();
@@ -687,6 +695,7 @@ mod tests {
             book_question_id: None,
             question_count: Some(3),
             question_ids: vec![],
+            exam_id: None,
         }
     }
 
@@ -712,6 +721,38 @@ mod tests {
             selected: selected.to_vec(),
             manual: None,
         }
+    }
+
+    #[test]
+    fn room_assignments_resolve_from_the_selected_exam_snapshot() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut db = db::open(&temp.path().join("exam.sqlite")).unwrap();
+        let class = classroom(&mut db);
+        let questions: Vec<_> = (0..4).map(sample).collect();
+        let json = serde_json::to_string(&questions).unwrap();
+        db.execute(
+            "INSERT INTO exams(id,classroom_id,title,questions) VALUES ('paper',?1,'Đề phòng',?2)",
+            params![class, json],
+        )
+        .unwrap();
+        let mut settings = config(None);
+        settings.exam_id = Some("paper".into());
+        settings.question_ids = vec![Some("outside".into())];
+        assert!(start(&mut db, &class, settings.clone()).is_err());
+        settings.exam_id = Some("missing".into());
+        assert!(start(&mut db, &class, settings.clone()).is_err());
+        settings.exam_id = Some("paper".into());
+        settings.question_ids = vec![Some(questions[3].id.clone()), Some(questions[0].id.clone())];
+        let mut room = start(&mut db, &class, settings).unwrap();
+        assert_eq!(room.questions[0].text, questions[3].text);
+        assert_eq!(room.questions[1].text, questions[0].text);
+        assert_eq!(room.questions[2].text, questions[2].text);
+        send(&mut db, &mut room, 0, Action::Abandon);
+        db.execute("DELETE FROM exams WHERE id='paper'", [])
+            .unwrap();
+        let next =
+            start_with_questions(&mut db, &class, room.config, Some(room.questions)).unwrap();
+        assert_eq!(next.questions[0].text, questions[3].text);
     }
 
     #[test]

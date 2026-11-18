@@ -1,8 +1,9 @@
 import { ArrowLeft, ArrowRight, BookOpen, Clock3, DoorOpen, Play, RotateCcw } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { api, type Classroom, type Question, type School } from '../../api'
+import { api, type Classroom, type Exam, type Question, type School } from '../../api'
 import roomArt from '../../assets/escape-classroom.png'
 import { errorText } from '../../Modal'
+import ExamSelect from '../../ExamSelect'
 import EscapeRules from './EscapeRules'
 import { stations, objects, roomWidth, roomHeight, chapter, defaultEscapeConfig, escapeApi, formatTime, isActive, type EscapeSession } from './model'
 
@@ -15,6 +16,7 @@ export default function EscapeSetup({ school, classroom, back, open }: {
   const [schools, setSchools] = useState<School[]>([school])
   const [classes, setClasses] = useState<Classroom[]>([classroom])
   const [bank, setBank] = useState<Question[]>([])
+  const [exams, setExams] = useState<Exam[]>([])
   const [config, setConfig] = useState(defaultEscapeConfig)
   const [pending, setPending] = useState<EscapeSession>()
   const [loading, setLoading] = useState(true)
@@ -42,10 +44,11 @@ export default function EscapeSetup({ school, classroom, back, open }: {
 
   useEffect(() => {
     let active = true
-    if (selectedClass) void Promise.all([api.questionPlan(selectedClass), escapeApi.list(selectedClass)])
-      .then(([plan, sessions]) => {
+    if (selectedClass) void Promise.all([api.questionPlan(selectedClass), escapeApi.list(selectedClass), api.exams(selectedClass)])
+      .then(([plan, sessions, papers]) => {
         if (!active) return
         setBank(plan.bank)
+        setExams(papers)
         setPending(sessions.find(isActive))
         setLoading(false)
       }).catch((cause) => { if (active) { setLoadError(errorText(cause)); setLoading(false) } })
@@ -53,8 +56,8 @@ export default function EscapeSetup({ school, classroom, back, open }: {
   }, [selectedClass, retry])
 
   function resetSelection() {
-    setConfig((current) => ({ ...current, deskQuestionId: null, bookQuestionId: null, questionIds: [] }))
-    setError(''); setLoadError(''); setBank([]); setPending(undefined); setLoading(true)
+    setConfig((current) => ({ ...current, deskQuestionId: null, bookQuestionId: null, questionIds: [], examId: null }))
+    setError(''); setLoadError(''); setBank([]); setExams([]); setPending(undefined); setLoading(true)
   }
 
   async function start(session?: EscapeSession) {
@@ -67,6 +70,8 @@ export default function EscapeSetup({ school, classroom, back, open }: {
     catch (cause) { setError(errorText(cause)) }
     finally { setBusy(false) }
   }
+
+  const availableQuestions = config.examId ? exams.find((exam) => exam.id === config.examId)?.questions ?? [] : bank
 
   return <div className="subpage escape-setup">
     <button type="button" className="text-button" onClick={back}><ArrowLeft size={16}/> Chọn trò chơi</button>
@@ -97,14 +102,17 @@ export default function EscapeSetup({ school, classroom, back, open }: {
           <p className="muted">Bấm vị trí trên ảnh để chọn câu hỏi cho chỗ đó. Mỗi câu đúng nhận một chữ số; thứ tự và giá trị manh mối đổi ngẫu nhiên mỗi lượt.</p>
           {!selectedClass && <p className="muted">Chọn trường có ít nhất một lớp để bắt đầu.</p>}
           {selectedClass && loading && <p role="status">Đang tải câu hỏi và tiến trình…</p>}
-          {selectedClass && !loading && !bank.length && !loadError && <p className="muted">Lớp chưa có câu hỏi. Phòng sẽ dùng câu hỏi mẫu cho từng vị trí.</p>}
+          {selectedClass && !loading && !config.examId && !bank.length && !loadError && <p className="muted">Lớp chưa có câu hỏi. Phòng sẽ dùng câu hỏi mẫu cho từng vị trí.</p>}
+          <ExamSelect exams={exams} value={config.examId} disabled={loading || busy} change={(examId) => setConfig({
+            ...config, examId, questionIds: [], deskQuestionId: null, bookQuestionId: null,
+          })}/>
           {stations.slice(0, config.questionCount ?? 3).map((station, index) => <label key={station}>{index + 1}. Câu hỏi {objects[station].label.toLowerCase()}
             <select id={`escape-question-${station}`} value={config.questionIds?.[index] ?? ''} disabled={loading || busy} onChange={(event) => {
               const questionIds = [...(config.questionIds ?? [])]
               questionIds[index] = event.target.value || null
               setConfig({ ...config, questionIds })
             }}>
-              <option value="">Dùng câu hỏi mẫu</option>{bank.map((question) => <option key={question.id} value={question.id}>{question.text.slice(0, 120)}</option>)}
+              <option value="">{config.examId ? 'Theo thứ tự trong đề' : 'Dùng câu hỏi mẫu'}</option>{availableQuestions.map((question) => <option key={question.id} value={question.id}>{question.text.slice(0, 120)}</option>)}
             </select></label>)}
         </div>
         {(error || loadError) && <div role="alert" className="alert">{loadError || error}{loadError && <button type="button" className="text-button" onClick={() => { resetSelection(); setRetry((value) => value + 1) }}>Thử lại</button>}</div>}

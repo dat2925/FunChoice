@@ -22,7 +22,7 @@ Sau cảnh báo của mỗi lần rơi, Rust rút một học sinh theo chế đ
 
 Học sinh trò chuyện bằng chữ trên sân, chạy tán loạn khi có cảnh báo, rồi chạy chậm lại lúc thiên thạch lao xuống. Mỗi lần chọn học sinh có 22% khả năng xuất hiện một cú rơi hụt trước cú rơi trúng. Cú rơi hụt không tính vào kết quả.
 
-Trong chi tiết lớp, mở **Chuẩn bị câu hỏi** để thêm câu thủ công hoặc nhập Excel (.xlsx) hay CSV. Dòng đầu cần có cột **Câu hỏi** và có thể thêm cột **Đáp án**. Chọn câu cho từng lượt hoặc để **Ngẫu nhiên**. Trò chơi ưu tiên các câu chưa gán cho lượt khác trước khi dùng lại câu. Trong **Cấu hình trò chơi**, chọn **Chỉ chọn học sinh** hoặc **Chọn học sinh và hiện câu hỏi**. Ở chế độ câu hỏi, máy quay phóng to học sinh, sau đó câu hỏi hiện lên. Bấm **Hiện đáp án** nếu có, rồi **Tiếp tục** để lưu kết quả và sang lượt kế.
+Trong chi tiết lớp, mở **Chuẩn bị câu hỏi** để thêm câu thủ công hoặc nhập Excel (.xlsx) hay CSV. Dòng đầu cần có cột **Câu hỏi** và có thể thêm cột **Đáp án**. Chọn câu cho từng lượt hoặc để **Ngẫu nhiên**. Chọn **Đề thi** trước khi gán câu cho từng lượt để chỉ dùng các câu trong đề đó, hoặc giữ **Ngân hàng câu hỏi** để dùng như trước. Trò chơi ưu tiên các câu chưa gán cho lượt khác trước khi dùng lại câu. Trong **Cấu hình trò chơi**, chọn **Chỉ chọn học sinh** hoặc **Chọn học sinh và hiện câu hỏi**. Ở chế độ câu hỏi, máy quay phóng to học sinh, sau đó câu hỏi hiện lên. Bấm **Hiện đáp án** nếu có, rồi **Tiếp tục** để lưu kết quả và sang lượt kế.
 
 Bật **Cho phép chọn lại học sinh** để cùng một học sinh có thể xuất hiện ở nhiều lượt. Với chế độ **Không lặp**, học sinh có thể được chọn lại khi mở vòng mới. Chế độ có câu hỏi dùng được với bản miễn phí. Giới hạn một lượt chọn của bản miễn phí vẫn áp dụng.
 
@@ -65,15 +65,15 @@ Bài Playwright mở ứng dụng Windows thật và dùng thư mục SQLite ri�
 
 ## Tiếp sức đấu đội
 
-Trong **Chuẩn bị câu hỏi**, chọn **Tải Excel mẫu**, sau đó nhập tệp hoặc chỉnh nội dung trước khi nhập. Chọn từ 2 đến 6 đội, đặt tên, chọn số vòng và chia học sinh thủ công hoặc chia đều ngẫu nhiên. Mỗi lượt tự hiện một câu từ ngân hàng của lớp. Giáo viên có thể bấm **Hiện đáp án**, sau đó bấm **Đúng · +1 điểm** hoặc **Sai / Bỏ qua** để chấm và chuyển lượt. Bảng tổng kết hiện đội thắng hoặc các đội đồng hạng. Điểm tiếp sức được giữ trong trận đang mở.
+Trong **Chuẩn bị câu hỏi**, chọn **Tải Excel mẫu**, sau đó nhập tệp hoặc chỉnh nội dung trước khi nhập. Chọn từ 2 đến 6 đội, đặt tên, chọn số vòng và chia học sinh thủ công hoặc chia đều ngẫu nhiên. Chọn **Đề thi**, rồi dùng toàn bộ câu hỏi trong đề hoặc chọn từng câu để thi đấu. Nếu không chọn đề, có thể dùng ngân hàng của lớp. Mỗi lượt tự hiện một câu từ nguồn đã chọn. Giáo viên có thể bấm **Hiện đáp án**, sau đó bấm **Đúng · +1 điểm** hoặc **Sai / Bỏ qua** để chấm và chuyển lượt. Bảng tổng kết hiện đội thắng hoặc các đội đồng hạng. Điểm tiếp sức được giữ trong trận đang mở.
 
 ## Căn phòng bí ẩn
 
-Trong chương **Bí mật phòng học cũ**, cả lớp trả lời câu hỏi và khám phá các đồ vật để thu thập manh mối. Dùng manh mối để mở két, lấy chìa khóa và thoát khỏi căn phòng. Giáo viên có thể chọn từ 3 đến 10 câu hỏi, với số vị trí khám phá tương ứng. Bấm vị trí trên ảnh thiết lập để gán câu hỏi của lớp hoặc dùng câu mẫu. Mỗi câu đúng cho một chữ số; thứ tự và giá trị manh mối đổi ngẫu nhiên mỗi lượt, không trùng chữ số và tránh lặp lượt trước. Bức tranh chỉ thứ tự nhập mật mã để mở két. Có thể đặt thời lượng và bật gợi ý. Tiến độ được lưu để có thể tạm dừng và tiếp tục sau.
+Trong chương **Bí mật phòng học cũ**, cả lớp trả lời câu hỏi và khám phá các đồ vật để thu thập manh mối. Dùng manh mối để mở két, lấy chìa khóa và thoát khỏi căn phòng. Giáo viên có thể chọn từ 3 đến 10 câu hỏi, với số vị trí khám phá tương ứng. Chọn **Đề thi** trước, rồi bấm vị trí trên ảnh thiết lập để gán câu trong đề cho từng chỗ. Nếu không chọn đề, có thể gán câu hỏi của lớp hoặc dùng câu mẫu. Mỗi câu đúng cho một chữ số; thứ tự và giá trị manh mối đổi ngẫu nhiên mỗi lượt, không trùng chữ số và tránh lặp lượt trước. Bức tranh chỉ thứ tự nhập mật mã để mở két. Có thể đặt thời lượng và bật gợi ý. Tiến độ được lưu để có thể tạm dừng và tiếp tục sau.
 
 ## Chuẩn bị nhiều cấu hình cho một lớp
 
-Mở lớp, bấm **Cấu hình đã lưu → Tạo cấu hình**, rồi đặt tên theo tiết học. Chọn trò chơi, các thiết lập và nguồn câu hỏi. Có thể chọn từng câu từ ngân hàng hoặc chọn một đề đã lưu. FunChoice lưu nội dung câu hỏi và thứ tự cùng cấu hình. Khi đến lớp, mở **Cấu hình đã lưu** và bấm **Chơi ngay** ở cấu hình cần dùng.
+Mở lớp, bấm **Cấu hình đã lưu → Tạo cấu hình**, rồi đặt tên theo tiết học. Chọn trò chơi, các thiết lập và nguồn câu hỏi. Có thể chọn từng câu từ ngân hàng hoặc chọn một đề đã lưu, sau đó chọn bớt và sắp xếp thứ tự các câu trong đề. FunChoice lưu nội dung câu hỏi và thứ tự cùng cấu hình. Khi đến lớp, mở **Cấu hình đã lưu** và bấm **Chơi ngay** ở cấu hình cần dùng.
 
 ## Miễn phí và Pro
 

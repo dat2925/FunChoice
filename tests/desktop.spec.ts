@@ -55,6 +55,7 @@ async function launch(): Promise<Page> {
     const host = new URL(route.request().url()).hostname
     return ['tauri.localhost', 'ipc.localhost'].includes(host) ? route.continue() : route.abort()
   })
+  await page.waitForFunction(() => !!document.querySelector('#root')?.childElementCount)
   return page
 }
 
@@ -319,6 +320,71 @@ test('Windows: quản lý đề thi qua ngân hàng của lớp và giữ đề 
   await expect(page.locator('.question-bank li')).toHaveCount(2)
 })
 
+test('Windows: chọn đề rồi gán câu hỏi cho từng trò chơi', async ({}, info) => {
+  data = await mkdtemp(resolve(tmpdir(), 'solotech-exam-selection-'))
+  const page = await launch()
+  await page.setViewportSize({ width: 1366, height: 768 })
+  const invoke = <T,>(command: string, args: Record<string, unknown>) => page.evaluate(({ command, args }) => {
+    return (window as unknown as { __TAURI_INTERNALS__: { invoke: (command: string, args: Record<string, unknown>) => Promise<T> } }).__TAURI_INTERNALS__.invoke(command, args)
+  }, { command, args })
+  await expect(page.getByRole('heading', { name: 'FunChoice.' })).toBeVisible()
+  const schoolId = await invoke<string>('save_school', { name: 'Hoa Sen', theme: 'city' })
+  const classroomId = await invoke<string>('save_classroom', { schoolId, name: '5A' })
+  for (const fullName of ['An', 'Bình']) await invoke('save_student', { classroomId, student: { fullName, studentCode: null, gender: null, isActive: true } })
+  const bank = [
+    { id: 'outside', text: 'Câu không thuộc đề', answer: null },
+    { id: 'a', text: 'Câu Toán bản gốc', answer: null },
+    { id: 'b', text: 'Câu chỉ còn trong đề', answer: null },
+    { id: 'c', text: 'Câu Toán thứ ba', answer: null },
+  ]
+  await invoke('save_class_question_plan', { classroomId, plan: { bank, turns: [] } })
+  const exam = await invoke<{ id: string }>('save_exam', { classroomId, title: 'Đề Toán', questionIds: ['a', 'b', 'c'] })
+  await invoke('save_class_question_plan', { classroomId, plan: { bank: [bank[0], { ...bank[1], text: 'Câu đã sửa ngoài đề' }, bank[3]], turns: [] } })
+  await page.reload()
+  await page.getByRole('button', { name: 'Xem lớp học' }).click()
+  await page.getByRole('button', { name: 'Xem học sinh' }).click()
+  await page.getByRole('button', { name: 'Chuẩn bị câu hỏi', exact: true }).click()
+  await expect(page.getByRole('combobox', { name: 'Đề thi', exact: true })).toBeVisible()
+  await page.getByRole('combobox', { name: 'Đề thi', exact: true }).selectOption(exam.id)
+  await expect(page.getByLabel('Lượt 1')).toBeEnabled()
+  await expect(page.getByLabel('Lượt 1').getByRole('option', { name: bank[0].text })).toHaveCount(0)
+  await page.getByLabel('Lượt 1').selectOption('b')
+  await expect(page.getByRole('status')).toContainText('Đã lưu câu hỏi')
+  const plan = await invoke<{ examId: string; turns: string[] }>('class_question_plan', { classroomId })
+  expect(plan.examId).toBe(exam.id)
+  expect(plan.turns).toEqual(['b'])
+  await page.getByRole('button', { name: 'Chi tiết lớp', exact: true }).click()
+  await page.getByRole('button', { name: 'Cấu hình trò chơi', exact: true }).click()
+  await page.getByRole('button', { name: 'Thiết lập trò chơi', exact: true }).click()
+  await expect(page.getByRole('combobox', { name: 'Đề thi', exact: true })).toBeVisible()
+  await page.getByRole('combobox', { name: 'Đề thi', exact: true }).selectOption(exam.id)
+  await page.getByLabel('1. Câu hỏi bàn học').selectOption('b')
+  await page.getByLabel('Âm thanh', { exact: true }).uncheck()
+  await page.screenshot({ path: info.outputPath('chon-de-gan-vi-tri.png'), fullPage: true })
+  await page.getByRole('button', { name: 'Bắt đầu khám phá' }).click()
+  await page.getByRole('button', { name: 'Bàn học', exact: true }).click()
+  await expect(page.getByRole('heading', { name: bank[2].text })).toBeVisible()
+  await page.getByRole('button', { name: 'Quay lại', exact: true }).click()
+  await page.getByRole('button', { name: 'Lưu và quay lại' }).click()
+  await page.getByRole('button', { name: 'Chọn Tiếp sức đấu đội' }).click()
+  await expect(page.getByRole('combobox', { name: 'Đề thi', exact: true })).toBeVisible()
+  await page.getByRole('combobox', { name: 'Đề thi', exact: true }).selectOption(exam.id)
+  await page.getByLabel('Câu hỏi sử dụng').selectOption('selected')
+  await page.getByLabel('Thêm câu hỏi').selectOption('b')
+  await page.getByRole('button', { name: 'Bắt đầu tiếp sức' }).click()
+  await expect(page.getByRole('heading', { name: bank[2].text })).toBeVisible()
+  await page.getByRole('button', { name: 'Dừng trận', exact: true }).click()
+  await page.getByRole('button', { name: 'Dừng và về cấu hình' }).click()
+  await page.getByRole('button', { name: 'Chọn trò chơi', exact: true }).click()
+  await page.getByRole('button', { name: 'Chọn Thiên thạch' }).click()
+  await page.getByLabel('Chế độ chơi').selectOption('questions')
+  await page.getByLabel('Chạy trước lần rơi đầu').selectOption('0')
+  await page.getByLabel('Tốc độ trò chơi').selectOption('2')
+  await page.getByLabel('Âm thanh', { exact: true }).uncheck()
+  await page.getByRole('button', { name: 'BẮT ĐẦU TRÒ CHƠI' }).click()
+  await expect(page.getByRole('heading', { name: bank[2].text })).toBeVisible({ timeout: 12000 })
+})
+
 test('Windows: Căn phòng bí ẩn giữ tiến trình, giải két và lưu lịch sử', async ({}, info) => {
   data = await mkdtemp(resolve(tmpdir(), 'solotech-escape-'))
   let page = await launch()
@@ -336,7 +402,7 @@ test('Windows: Căn phòng bí ẩn giữ tiến trình, giải két và lưu l�
   await page.getByLabel('Tên phiên chơi').fill('Khám phá cùng lớp 5A')
   await page.getByLabel('Số câu hỏi').selectOption('10')
   await expect(page.locator('.escape-setup-map button')).toHaveCount(10)
-  await expect(page.locator('.escape-question-selection select')).toHaveCount(10)
+  await expect(page.locator('.escape-question-selection select[id^="escape-question-"]')).toHaveCount(10)
   await page.screenshot({ path: info.outputPath('escape-setup-10.png') })
   await page.getByLabel('Số câu hỏi').selectOption('3')
   await expect(page.locator('.escape-setup-map button')).toHaveCount(3)

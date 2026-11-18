@@ -114,7 +114,8 @@ fn save(
 }
 
 fn delete(db: &Connection, class: &str, id: &str) -> Result<()> {
-    let changed = db
+    let tx = db.unchecked_transaction().map_err(db::storage)?;
+    let changed = tx
         .execute(
             "DELETE FROM exams WHERE id=?1 AND classroom_id=?2",
             params![id, class],
@@ -123,7 +124,8 @@ fn delete(db: &Connection, class: &str, id: &str) -> Result<()> {
     if changed == 0 {
         return Err("Không tìm thấy đề thi của lớp này.".into());
     }
-    Ok(())
+    tx.execute("UPDATE classrooms SET question_plan=json_set(json_remove(question_plan,'$.examId'),'$.turns',json('[]')) WHERE id=?1 AND json_extract(question_plan,'$.examId')=?2", params![class, id]).map_err(db::storage)?;
+    tx.commit().map_err(db::storage)
 }
 
 #[tauri::command]
@@ -197,7 +199,20 @@ mod tests {
         let papers = list(&restored, Some(&a)).unwrap();
         assert_eq!(papers[0].title, "Đề ôn tập");
         assert_eq!(papers[0].questions[0].answer.as_deref(), Some("Bằng bốn."));
+        db::save_question_plan(
+            &mut restored,
+            &a,
+            serde_json::from_value(serde_json::json!({
+                "bank":[{"id":"a","text":"Câu đã sửa","answer":null}],
+                "examId":exam.id,"turns":["b"]
+            }))
+            .unwrap(),
+        )
+        .unwrap();
         delete(&restored, &a, &exam.id).unwrap();
+        let plan = serde_json::to_value(db::question_plan(&restored, &a).unwrap()).unwrap();
+        assert!(plan.get("examId").is_none());
+        assert_eq!(plan["turns"], serde_json::json!([]));
         assert!(list(&restored, Some(&a)).unwrap().is_empty());
         assert_eq!(db::question_plan(&restored, &a).unwrap().bank.len(), 1);
     }

@@ -34,8 +34,16 @@ enum Game {
 enum Source {
     Default,
     Bank,
-    Questions { question_ids: Vec<String> },
-    Exam { exam_id: String },
+    Questions {
+        question_ids: Vec<String>,
+        #[serde(default)]
+        exam_id: Option<String>,
+    },
+    Exam {
+        exam_id: String,
+        #[serde(default)]
+        question_ids: Option<Vec<String>>,
+    },
 }
 
 #[derive(Deserialize)]
@@ -107,6 +115,22 @@ fn find(db: &Connection, class: &str, id: &str) -> Result<Preset> {
     .ok_or_else(|| "Không tìm thấy cấu hình đã lưu của lớp này.".into())
 }
 
+fn select_questions(source: Vec<Question>, ids: &[String]) -> Result<Vec<Question>> {
+    let unique: HashSet<_> = ids.iter().collect();
+    if unique.is_empty() || unique.len() != ids.len() {
+        return Err("Hãy chọn ít nhất một câu và mỗi câu chỉ chọn một lần.".into());
+    }
+    let index: HashMap<_, _> = source.into_iter().map(|q| (q.id.clone(), q)).collect();
+    ids.iter()
+        .map(|id| {
+            index
+                .get(id)
+                .cloned()
+                .ok_or_else(|| "Có câu hỏi không còn trong nguồn đã chọn.".into())
+        })
+        .collect()
+}
+
 fn save(
     db: &mut Connection,
     class: &str,
@@ -144,26 +168,28 @@ fn save(
             }
             ("Ngân hàng câu hỏi".into(), bank)
         }
-        Some(Source::Questions { question_ids }) => {
-            let unique: HashSet<_> = question_ids.iter().collect();
-            if unique.is_empty() || unique.len() != question_ids.len() {
-                return Err("Hãy chọn ít nhất một câu và mỗi câu chỉ chọn một lần.".into());
-            }
-            let index: HashMap<_, _> = bank.into_iter().map(|q| (q.id.clone(), q)).collect();
-            let questions = question_ids
-                .iter()
-                .map(|id| {
-                    index
-                        .get(id)
-                        .cloned()
-                        .ok_or_else(|| "Có câu hỏi không còn trong ngân hàng của lớp.".to_owned())
-                })
-                .collect::<Result<_>>()?;
-            ("Câu hỏi được chọn".into(), questions)
+        Some(Source::Questions {
+            question_ids,
+            exam_id,
+        }) => {
+            let (label, source) = if let Some(id) = exam_id {
+                let exam = exams::find(&tx, class, &id)?;
+                (format!("Đề thi · {}", exam.title), exam.questions)
+            } else {
+                ("Câu hỏi được chọn".into(), bank)
+            };
+            (label, select_questions(source, &question_ids)?)
         }
-        Some(Source::Exam { exam_id }) => {
+        Some(Source::Exam {
+            exam_id,
+            question_ids,
+        }) => {
             let exam = exams::find(&tx, class, &exam_id)?;
-            (format!("Đề thi · {}", exam.title), exam.questions)
+            let questions = match question_ids {
+                Some(ids) => select_questions(exam.questions, &ids)?,
+                None => exam.questions,
+            };
+            (format!("Đề thi · {}", exam.title), questions)
         }
     };
     match &mut game {
@@ -303,6 +329,56 @@ mod tests {
 
     fn input(value: Value) -> PresetInput {
         serde_json::from_value(value).unwrap()
+    }
+
+    #[test]
+    fn selected_exam_questions_keep_order_and_reject_other_sources() {
+        let folder = tempfile::tempdir().unwrap();
+        let mut db = db::open(&folder.path().join("subset.sqlite")).unwrap();
+        let school = db::save_school(&db, None, "Hoa Sen", None).unwrap();
+        let class = db::save_classroom(&db, &school, None, "5A").unwrap();
+        let questions = json!([
+            {"id":"a","text":"Bản gốc trong đề","answer":"Gốc"},
+            {"id":"b","text":"Câu B","answer":null},
+            {"id":"c","text":"Câu C","answer":null}
+        ]);
+        db.execute(
+            "INSERT INTO exams(id,classroom_id,title,questions) VALUES ('paper',?1,'Đề Toán',?2)",
+            params![class, questions.to_string()],
+        )
+        .unwrap();
+        let game =
+            json!({"kind":"relay","settings":{"names":["A","B"],"assignments":{},"rounds":1}});
+        for kind in ["exam", "questions"] {
+            let good = save(
+                &mut db,
+                &class,
+                None,
+                input(json!({"title":"Đã chọn", "game":game,
+                "questionSource":{"kind":kind,"examId":"paper","questionIds":["c","a"]}})),
+                false,
+            )
+            .unwrap();
+            assert_eq!(
+                good.questions
+                    .iter()
+                    .map(|q| q.id.as_str())
+                    .collect::<Vec<_>>(),
+                ["c", "a"]
+            );
+            assert_eq!(good.questions[1].answer.as_deref(), Some("Gốc"));
+            for ids in [vec!["outside"], vec!["a", "a"], vec![]] {
+                assert!(save(
+                    &mut db,
+                    &class,
+                    None,
+                    input(json!({"title":"Sai", "game":game,
+                    "questionSource":{"kind":kind,"examId":"paper","questionIds":ids}})),
+                    false
+                )
+                .is_err());
+            }
+        }
     }
 
     #[test]

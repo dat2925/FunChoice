@@ -1,7 +1,8 @@
 import { ArrowLeft, ArrowRight, Download, FileUp, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { api, optionLetters, type Classroom, type QuestionPlan } from './api'
+import { api, optionLetters, type Classroom, type Exam, type QuestionPlan } from './api'
 import { errorText } from './Modal'
+import ExamSelect from './ExamSelect'
 import QuestionImages from './QuestionImages'
 import WordImportDialog from './features/question-import/word/WordImportDialog'
 import { normalized, readQuestions } from './roster'
@@ -13,6 +14,7 @@ export default function QuestionSetup({ classroom, count = 1, changeCount, back,
   classroom: Classroom; count?: number; changeCount?: (count: number) => void; back?: () => void; setup?: () => void; bankOnly?: boolean
 }) {
   const [plan, setPlan] = useState<QuestionPlan>()
+  const [exams, setExams] = useState<Exam[]>([])
   const [text, setText] = useState('')
   const [answer, setAnswer] = useState('')
   const [multipleChoice, setMultipleChoice] = useState(false)
@@ -28,10 +30,10 @@ export default function QuestionSetup({ classroom, count = 1, changeCount, back,
   const file = useRef<HTMLInputElement>(null)
   useEffect(() => {
     let active = true
-    void api.questionPlan(classroom.id).then((value) => { if (active) setPlan(value) })
+    void Promise.all([api.questionPlan(classroom.id), bankOnly ? Promise.resolve([]) : api.exams(classroom.id)]).then(([value, papers]) => { if (active) { setPlan(value); setExams(papers) } })
       .catch((cause) => { if (active) setError(errorText(cause)) })
     return () => { active = false }
-  }, [classroom.id])
+  }, [classroom.id, bankOnly])
 
   async function save(next: QuestionPlan) {
     setBusy(true)
@@ -62,13 +64,14 @@ export default function QuestionSetup({ classroom, count = 1, changeCount, back,
     finally { setBusy(false) }
   }
 
+  const turnBank = plan?.examId ? exams.find((exam) => exam.id === plan.examId)?.questions ?? [] : plan?.bank ?? []
   const turnCount = Math.max(1, Math.floor(count), plan?.turns.length ?? 0)
   const first = turnPage * pageSize
   const displayedBank = plan?.bank.filter((question) => normalized(question.text).includes(normalized(filter))) ?? []
   return <div className={bankOnly ? 'exam-bank' : 'subpage'}>
     {back && <button className="text-button" onClick={back} disabled={busy}><ArrowLeft size={16}/> Chi tiết lớp</button>}
     {!bankOnly && <div className="page-heading"><div><h1>Chuẩn bị câu hỏi</h1><p>{classroom.name}</p></div>
-      {setup && <button className="button primary" onClick={setup} disabled={busy || !plan?.bank.length || !!text.trim()}>Cấu hình trò chơi <ArrowRight size={16}/></button>}
+      {setup && <button className="button primary" onClick={setup} disabled={busy || !turnBank.length || !!text.trim()}>Cấu hình trò chơi <ArrowRight size={16}/></button>}
     </div>}
     {error && <div className="alert" role="alert">{error}</div>}
     {notice && <p className="muted" role="status">{notice}</p>}
@@ -127,12 +130,17 @@ export default function QuestionSetup({ classroom, count = 1, changeCount, back,
           }}>{q.text}</button>{q.options?.length ? <small>Trắc nghiệm · {q.options.length} phương án</small> : q.answer && <small>Có đáp án</small>}
           {!!q.imageIds?.length && <small>{q.imageIds.length} ảnh</small>}</div>
           <button className="icon-button delete" title="Xóa câu hỏi" aria-label={'Xóa câu hỏi ' + q.text} disabled={busy} onClick={async () => {
-            if (await save({ bank: plan.bank.filter((item) => item.id !== q.id), turns: plan.turns.map((id) => id === q.id ? null : id) }) && editing === q.id) clearEditor()
+            if (await save({ ...plan, bank: plan.bank.filter((item) => item.id !== q.id), turns: plan.examId ? plan.turns : plan.turns.map((id) => id === q.id ? null : id) }) && editing === q.id) clearEditor()
           }}><Trash2 size={16}/></button>
         </li>)}</ul>}
       </section>
       {!bankOnly && <section className="panel setup-panel">
         <h2>Câu hỏi theo lượt</h2>
+        <ExamSelect exams={exams} value={plan.examId} disabled={busy} change={(examId) => {
+          setTurnPage(0)
+          void save({ ...plan, examId, turns: [] })
+        }}/>
+        {plan.examId && <p className="muted">Chọn câu hỏi trong đề cho từng lượt hoặc để ngẫu nhiên trong đề.</p>}
         {changeCount && <label>Số lượt dự kiến<input type="number" min={1} value={count || ''} onChange={(e) => {
           changeCount(Number(e.target.value))
           setTurnPage(0)
@@ -142,13 +150,13 @@ export default function QuestionSetup({ classroom, count = 1, changeCount, back,
           {Array.from({ length: Math.min(pageSize, turnCount - first) }, (_, i) => {
             const turn = first + i
             return <label key={turn}>Lượt {turn + 1}
-              <select aria-label={'Lượt ' + (turn + 1)} value={plan.turns[turn] ?? ''} disabled={busy || !plan.bank.length} onChange={(e) => {
+              <select aria-label={'Lượt ' + (turn + 1)} value={plan.turns[turn] ?? ''} disabled={busy || !turnBank.length} onChange={(e) => {
                 const turns = Array.from({ length: Math.max(plan.turns.length, turn + 1) }, (_, j) => plan.turns[j] ?? null)
                 turns[turn] = e.target.value || null
                 void save({ ...plan, turns })
               }}>
                 <option value="">Ngẫu nhiên</option>
-                {plan.bank.map((q) => <option key={q.id} value={q.id}>{q.text.slice(0, 125)}</option>)}
+                {turnBank.map((q) => <option key={q.id} value={q.id}>{q.text.slice(0, 125)}</option>)}
               </select>
             </label>
           })}

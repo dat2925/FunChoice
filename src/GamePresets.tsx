@@ -1,8 +1,10 @@
-import { ArrowDown, ArrowLeft, ArrowUp, DoorOpen, Pencil, Play, Plus, Save, Sparkles, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, DoorOpen, Pencil, Play, Plus, Save, Sparkles, Trash2, Users } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { api, defaults, type Classroom, type Exam, type Question, type Student } from './api'
 import Modal, { errorText } from './Modal'
 import { gameNames, presetApi, type GamePreset, type PresetGame, type QuestionSource } from './presetApi'
+import ExamSelect from './ExamSelect'
+import QuestionOrderPicker from './QuestionOrderPicker'
 import Setup from './Setup'
 import RelaySettings, { defaultRelayConfig } from './RelaySettings'
 import EscapeRules from './game/escape-room/EscapeRules'
@@ -35,30 +37,22 @@ function PresetEditor({ previous, classroom, students, pro, bank, exams, close, 
   const active = students.filter((student) => student.isActive)
   const exam = exams.find((entry) => entry.id === examId)
   const count = source === 'keep' ? previous?.questions.length ?? 0 : source === 'questions' ? questionIds.length
-    : source === 'exam' ? exam?.questions.length ?? 0 : source === 'bank' ? bank.length : 0
+    : source === 'exam' ? questionIds.length : source === 'bank' ? bank.length : 0
   const Icon = icons[game.kind]
   const minimum = game.kind === 'escape' ? game.settings.questionCount ?? 3 : 1
   const hasRequiredQuestions = source === 'default' || (source === 'keep' && !count) || count >= minimum
-  const questionsById = new Map(bank.map((question) => [question.id, question]))
+  const available = examId ? exam?.questions ?? [] : bank
 
   async function save() {
     if (lock.current || !title.trim() || !hasRequiredQuestions) return
-    const questionSource = source === 'keep' ? null : source === 'exam' ? { kind: source, examId } as const
-      : source === 'questions' ? { kind: source, questionIds } as const : { kind: source }
+    const questionSource = source === 'keep' ? null : source === 'exam' ? { kind: source, examId, questionIds } as const
+      : source === 'questions' ? { kind: source, questionIds, examId: examId || null } as const : { kind: source }
     setBusy(true)
     lock.current = true
     setError('')
     try { saved(await presetApi.save(classroom.id, { title, game, questionSource }, previous?.id)) }
     catch (cause) { setError(errorText(cause)) }
     finally { lock.current = false; setBusy(false) }
-  }
-
-  function move(index: number, next: number) {
-    setQuestionIds((current) => {
-      const order = [...current]
-      ;[order[index], order[next]] = [order[next], order[index]]
-      return order
-    })
   }
 
   return <form className="preset-editor" onSubmit={(event) => { event.preventDefault(); void save() }}>
@@ -74,36 +68,20 @@ function PresetEditor({ previous, classroom, students, pro, bank, exams, close, 
             if (source === 'keep' || source === 'default') setSource(defaultSource(kind))
           }}>{Object.entries(gameNames).map(([key, name]) => <option key={key} value={key}>{name}</option>)}</select></label>
         </div>
-        <label>Nguồn câu hỏi<select value={source} onChange={(event) => setSource(event.target.value as typeof source)}>
+        <label>Nguồn câu hỏi<select value={source} onChange={(event) => { setSource(event.target.value as typeof source); setExamId(''); setQuestionIds([]) }}>
           {previous?.game.kind === game.kind && <option value="keep">Giữ câu hỏi đã lưu</option>}
           {game.kind !== 'relay' && <option value="default">{game.kind === 'escape' ? 'Dùng câu hỏi mẫu' : 'Chỉ chọn học sinh'}</option>}
-          <option value="questions">Chọn từng câu từ ngân hàng</option>
+          <option value="questions">Chọn từng câu hỏi</option>
           <option value="exam">Chọn một đề thi đã lưu</option>
           <option value="bank">Dùng toàn bộ ngân hàng câu hỏi</option>
         </select></label>
         {source === 'keep' && <p className="muted">{previous?.sourceLabel}{count > 0 && ` · ${count} câu`}</p>}
-        {source === 'exam' && <label>Đề thi<select value={examId} required onChange={(event) => setExamId(event.target.value)}>
+        {source === 'exam' && <label>Đề thi<select value={examId} required onChange={(event) => { setExamId(event.target.value); setQuestionIds(exams.find((exam) => exam.id === event.target.value)?.questions.map((q) => q.id) ?? []) }}>
           <option value="">{exams.length ? 'Chọn một đề thi' : 'Lớp chưa có đề thi'}</option>
           {exams.map((item) => <option key={item.id} value={item.id}>{item.title} · {item.questions.length} câu</option>)}
         </select></label>}
-        {source === 'questions' && <>
-          <label>Thêm câu hỏi<select value="" onChange={(event) => {
-            const id = event.target.value
-            if (id) setQuestionIds((current) => current.includes(id) ? current : [...current, id])
-          }}>
-            <option value="">{bank.length ? 'Chọn câu hỏi để thêm' : 'Ngân hàng của lớp đang trống'}</option>
-            {bank.filter((question) => !questionIds.includes(question.id)).map((question) =>
-              <option value={question.id} key={question.id}>{question.text.slice(0, 140)}</option>)}
-          </select></label>
-          {questionIds.length > 0 && <ol className="preset-questions">{questionIds.map((id, index) => <li key={id}>
-            <span>{questionsById.get(id)?.text}</span>
-            <div className="item-actions">
-              <button type="button" className="icon-button" aria-label={`Đưa câu ${index + 1} lên`} disabled={index === 0} onClick={() => move(index, index - 1)}><ArrowUp size={16}/></button>
-              <button type="button" className="icon-button" aria-label={`Đưa câu ${index + 1} xuống`} disabled={index === questionIds.length - 1} onClick={() => move(index, index + 1)}><ArrowDown size={16}/></button>
-              <button type="button" className="icon-button delete" aria-label={`Bỏ câu ${index + 1}`} onClick={() => setQuestionIds((current) => current.filter((value) => value !== id))}><Trash2 size={16}/></button>
-            </div>
-          </li>)}</ol>}
-        </>}
+        {source === 'questions' && <ExamSelect exams={exams} value={examId} change={(id) => { setExamId(id ?? ''); setQuestionIds([]) }}/>}
+        {(source === 'questions' || (source === 'exam' && exam)) && <QuestionOrderPicker questions={available} selected={questionIds} change={setQuestionIds}/>}
         {source !== 'default' && source !== 'keep' && <p className="muted">{count} câu. {game.kind === 'escape'
           ? 'Câu hỏi được gắn lần lượt vào các vị trí trong phòng, theo số câu đã chọn.'
           : 'Trò chơi dùng thứ tự đã lưu và quay lại câu đầu nếu còn lượt.'}</p>}

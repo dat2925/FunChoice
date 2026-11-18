@@ -12,8 +12,8 @@ export type PresetGame =
 
 export type QuestionSource =
   | { kind: 'default' | 'bank' }
-  | { kind: 'questions'; questionIds: string[] }
-  | { kind: 'exam'; examId: string }
+  | { kind: 'questions'; questionIds: string[]; examId?: string | null }
+  | { kind: 'exam'; examId: string; questionIds?: string[] }
 
 export interface PresetInput { title: string; game: PresetGame; questionSource: QuestionSource | null }
 export interface GamePreset { id: string; title: string; game: PresetGame; sourceLabel: string; questions: Question[] }

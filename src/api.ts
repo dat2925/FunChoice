@@ -43,7 +43,7 @@ export interface ImportedQuestion {
   text: string; answer: string | null; options: string[]; correctOptions: number[]; images: number[]
 }
 export const optionLetters = 'ABCDEFGH'
-export interface QuestionPlan { bank: Question[]; turns: (string | null)[] }
+export interface QuestionPlan { bank: Question[]; turns: (string | null)[]; examId?: string | null }
 export interface Exam { id: string; title: string; questions: Question[]; updatedAt: string }
 export interface Pick {
   studentId: string; fullName: string; studentCode: string | null; selectionOrder: number; selectedAt: string | null

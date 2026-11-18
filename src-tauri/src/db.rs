@@ -117,6 +117,8 @@ pub struct Question {
 
 #[derive(Deserialize, Serialize)]
 pub struct QuestionPlan {
+    #[serde(default, rename = "examId", skip_serializing_if = "Option::is_none")]
+    exam_id: Option<String>,
     pub(crate) bank: Vec<Question>,
     turns: Vec<Option<String>>,
 }
@@ -674,11 +676,25 @@ fn write_question_plan(
             }
         }
     }
+    let exam = plan
+        .exam_id
+        .as_ref()
+        .map(|id| crate::exams::find(db, class, id))
+        .transpose()?;
+    let source_ids = exam
+        .as_ref()
+        .map(|exam| {
+            exam.questions
+                .iter()
+                .map(|q| q.id.as_str())
+                .collect::<HashSet<_>>()
+        })
+        .unwrap_or(ids);
     if plan
         .turns
         .iter()
         .flatten()
-        .any(|id| !ids.contains(id.as_str()))
+        .any(|id| !source_ids.contains(id.as_str()))
     {
         return Err("Có lượt được gán câu hỏi không còn trong danh sách.".into());
     }
@@ -691,6 +707,14 @@ fn write_question_plan(
         )
         .map_err(storage)?,
     )?;
+    Ok(plan)
+}
+
+pub(crate) fn game_question_plan(db: &Connection, class: &str) -> Result<QuestionPlan> {
+    let mut plan = question_plan(db, class)?;
+    if let Some(id) = &plan.exam_id {
+        plan.bank = crate::exams::find(db, class, id)?.questions;
+    }
     Ok(plan)
 }
 
@@ -829,7 +853,7 @@ pub(crate) fn start_with_questions(
     settings.questions = match saved {
         Some(questions) => questions.iter().cycle().take(settings.count).cloned().collect(),
         None if settings.with_questions => questions_for_game(
-            &question_plan(&tx, class)?,
+            &game_question_plan(&tx, class)?,
             settings.count,
             &mut rand::rng(),
         )?,
@@ -1153,6 +1177,52 @@ mod tests {
     }
 
     #[test]
+    fn exam_turns_use_saved_questions_without_changing_the_bank() {
+        let folder = tempfile::tempdir().unwrap();
+        let path = folder.path().join("exam-turns.sqlite");
+        let mut db = open(&path).unwrap();
+        let school = save_school(&db, None, "Hoa Sen", None).unwrap();
+        let class = save_classroom(&db, &school, None, "5A").unwrap();
+        let other = save_classroom(&db, &school, None, "5B").unwrap();
+        save_student(&mut db, &class, None, person("Minh", 1)).unwrap();
+        let questions = serde_json::json!([
+            {"id":"saved-a","text":"Câu trong đề A","answer":"Đáp án gốc"},
+            {"id":"saved-b","text":"Câu trong đề B","answer":null}
+        ]);
+        db.execute(
+            "INSERT INTO exams(id,classroom_id,title,questions) VALUES ('paper',?1,'Đề Toán',?2)",
+            params![class, questions.to_string()],
+        )
+        .unwrap();
+        let plan = |exam, turns| {
+            serde_json::from_value(serde_json::json!({
+            "bank":[{"id":"outside","text":"Ngoài đề","answer":null}], "examId":exam, "turns":turns
+        })).unwrap()
+        };
+        assert!(save_question_plan(&mut db, &other, plan("paper", vec!["saved-b"])).is_err());
+        assert!(save_question_plan(&mut db, &class, plan("paper", vec!["outside"])).is_err());
+        save_question_plan(&mut db, &class, plan("paper", vec!["saved-b"])).unwrap();
+        drop(db);
+        let mut db = open(&path).unwrap();
+        assert_eq!(question_plan(&db, &class).unwrap().bank[0].id, "outside");
+        let mut config = settings(4, "random");
+        config.repeat_students = true;
+        config.with_questions = true;
+        let room = start(&mut db, &class, config).unwrap();
+        assert_eq!(room.settings.questions[0].id, "saved-b");
+        assert!(room
+            .settings
+            .questions
+            .iter()
+            .all(|q| q.id.starts_with("saved-")));
+        assert!(room
+            .settings
+            .questions
+            .iter()
+            .any(|q| q.answer.as_deref() == Some("Đáp án gốc")));
+    }
+
+    #[test]
     fn question_schedule_and_repeated_student_survive_resume() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("test.sqlite");
@@ -1168,6 +1238,7 @@ mod tests {
             &mut db,
             &class,
             QuestionPlan {
+                exam_id: None,
                 bank: vec![
                     Question {
                         id: "a".into(),
