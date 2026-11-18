@@ -368,6 +368,26 @@ test('Windows: Căn phòng bí ẩn giữ tiến trình, giải két và lưu l�
   const detail = () => page.getByRole('region', { name: 'Chi tiết khám phá' })
   const inspect = (name: string) => page.getByRole('button', { name, exact: true }).click()
   const closeDetail = () => page.getByRole('button', { name: 'Đóng chi tiết' }).click()
+  const stationaryRoom = async (action: () => Promise<void>) => {
+    const stage = page.locator('.escape-stage')
+    const roomCanvas = stage.locator('canvas')
+    const beforeStage = await stage.boundingBox()
+    const beforeCanvas = await roomCanvas.boundingBox()
+    const originalCanvas = await roomCanvas.elementHandle()
+    await action()
+    for (let i = 0; i < 2; i++) {
+      expect(await stage.boundingBox()).toEqual(beforeStage)
+      expect(await roomCanvas.boundingBox()).toEqual(beforeCanvas)
+      expect(await roomCanvas.evaluate((node, original) => node === original, originalCanvas)).toBe(true)
+      if (i === 0) await page.waitForTimeout(350)
+    }
+    await originalCanvas?.dispose()
+  }
+  for (let i = 0; i < 2; i++) {
+    await stationaryRoom(() => page.getByRole('button', { name: 'Sổ tay', exact: true }).click())
+    await expect(detail().getByRole('heading', { name: 'Sổ tay' })).toBeVisible()
+    await stationaryRoom(closeDetail)
+  }
   await inspect('Cửa thoát hiểm')
   await expect(detail()).toContainText('Hãy tìm chìa khóa')
   await closeDetail()
@@ -397,9 +417,9 @@ test('Windows: Căn phòng bí ẩn giữ tiến trình, giải két và lưu l�
   await page.waitForTimeout(1200)
   await expect(timer).toHaveText(pausedAt!)
   await page.getByRole('button', { name: 'Tiếp tục khám phá' }).click()
-  await page.getByRole('button', { name: 'Gợi ý', exact: true }).click()
+  await stationaryRoom(() => page.getByRole('button', { name: 'Gợi ý', exact: true }).click())
   await expect(detail()).toContainText('Mỗi vị trí câu hỏi')
-  await closeDetail()
+  await stationaryRoom(closeDetail)
   await inspect('Tủ sách')
   await detail().getByRole('button', { name: 'Mở cuốn sách phát sáng' }).click()
   await detail().getByRole('button', { name: 'A Hình vuông' }).click()

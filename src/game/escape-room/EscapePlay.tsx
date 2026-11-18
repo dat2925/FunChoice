@@ -243,7 +243,7 @@ export default function EscapePlay({ initial, back, replay }: { initial: EscapeS
         <button className="button play-button" disabled={busy || animating} onClick={() => void submit({ type: paused ? 'resume' : 'pause' })}><Pause size={17}/>{paused ? 'Tiếp tục' : 'Tạm dừng'}</button>
         <button className="button play-button" aria-pressed={full} onClick={() => void toggleFullscreen()}><Maximize size={17}/> {full ? 'Thoát toàn màn hình' : 'Toàn màn hình'}</button></div>
     </header>
-    <main className={'escape-main' + (detail && !questionDetail ? ' has-detail' : '')}>
+    <main className="escape-main">
       <div className="escape-preview">
         <div className="escape-stage" ref={stage} style={{ backgroundImage: `url(${roomArt})` }}>
           <Suspense fallback={<p className="escape-loading" role="status">Đang mở căn phòng…</p>}>

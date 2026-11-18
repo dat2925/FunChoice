@@ -18,7 +18,6 @@
 .escape-play .play-button { background: #593b37; border-color: #896250; color: #fff0da; }
 .escape-play .play-button:hover:not(:disabled) { background: #765247; }
 .escape-main { display: grid; position: relative; grid-template-columns: minmax(0, 1fr); min-height: 0; gap: 12px; }
-.escape-main.has-detail { grid-template-columns: minmax(0, 1fr) minmax(270px, 33%); }
 .escape-preview { display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 0; container-type: size; }
 .escape-stage { position: relative; width: min(100%, calc(100cqh * 1.777)); aspect-ratio: 1672 / 941; isolation: isolate; border-radius: 13px; background-size: cover; box-shadow: 0 10px 34px #0c0907bc; }
 .escape-canvas { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
@@ -28,7 +27,7 @@
 .escape-object:hover, .escape-object:focus-visible { background: #ffcb6e18; border-color: #ffe4a772; box-shadow: inset 0 0 20px #ffc98a55; }
 .escape-object span { white-space: nowrap; display: flex; align-items: center; gap: 3px; border: 1px solid #b78a56aa; border-radius: 6px; color: #fff1cf; background: #251a17e8; padding: 2px 6px; line-height: 1.3; font-size: clamp(9px, 1.15vw, 14px); font-weight: 800; }
 .escape-object.found span { background: #264535ed; border-color: #80a771; }
-.escape-detail { display: grid; align-content: start; min-height: 0; min-width: 0; overflow: auto; scrollbar-width: thin; gap: 10px; padding: clamp(11px, 1.45vw, 19px); border: 1px solid #d4a87b; border-radius: 13px; background: #fff6e6; color: #3b2927; overflow-wrap: anywhere; }
+.escape-detail { position: absolute; z-index: 2; inset: 0 0 0 auto; width: min(420px, 92%); box-shadow: -8px 0 28px #140e1940; display: grid; align-content: start; min-height: 0; min-width: 0; overflow: auto; scrollbar-width: thin; gap: 10px; padding: clamp(11px, 1.45vw, 19px); border: 1px solid #d4a87b; border-radius: 13px; background: #fff6e6; color: #3b2927; overflow-wrap: anywhere; }
 .escape-detail-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .escape-detail :is(.button, h3) { justify-self: start; }
 .escape-detail p { line-height: 1.5; }
@@ -74,7 +73,6 @@
 .escape-result-panel dd { margin: 0; font-weight: 800; font-size: 18px; }
 .escape-result-panel .toolbar-actions { justify-content: center; }
 @media (max-width: 1050px) { .escape-setup-grid { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 800px) { .escape-main.has-detail { grid-template-columns: minmax(0, 1fr) minmax(235px, 36%); } }
 @media (prefers-reduced-motion: reduce) { .escape-loot, .escape-shake, .escape-door-key { animation-duration: .1s; } }
 
 .escape-setup-map { position: relative; }
