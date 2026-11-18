@@ -240,7 +240,7 @@ fn migrate(db: &Connection) -> Result<()> {
     let version: i64 = db
         .query_row("PRAGMA user_version", [], |r| r.get(0))
         .map_err(storage)?;
-    if !(0..=8).contains(&version) {
+    if !(0..=9).contains(&version) {
         return Err("Phiên bản dữ liệu không tương thích.".into());
     }
     if version == 0 {
@@ -274,6 +274,9 @@ fn migrate(db: &Connection) -> Result<()> {
     if version < 8 {
         db.execute_batch(include_str!("../migrations/008_game_presets.sql"))
             .map_err(storage)?;
+    }
+    if version < 9 {
+        db.execute_batch(include_str!("../migrations/009_knight_rescue.sql")).map_err(storage)?;
     }
     Ok(())
 }
@@ -1008,7 +1011,7 @@ fn validate_backup(db: &Connection) -> Result<()> {
     let schema: i64 = db.query_row("SELECT COUNT(*) FROM sqlite_schema WHERE type='table' AND
         name IN ('schools','classrooms','students','game_sessions','selection_results','cycle_members')", [], |r| r.get(0)).map_err(storage)?;
     if app != APPLICATION_ID
-        || !(1..=8).contains(&version)
+        || !(1..=9).contains(&version)
         || integrity != "ok"
         || foreign_error
         || schema != 6
@@ -1048,6 +1051,7 @@ pub fn restore(db: &mut Connection, source: &Path, pro: bool) -> Result<()> {
     pending(&staged)?;
     history(&staged)?;
     crate::escape_room::list(&staged, None)?;
+    crate::knight_rescue::list(&staged, None)?;
     crate::exams::list(&staged, None)?;
     crate::game_presets::list(&staged, None)?;
     if !pro {

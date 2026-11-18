@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod db;
+mod knight_rescue;
 mod escape_room;
 mod exams;
 mod game_presets;
@@ -356,6 +357,8 @@ fn main() {
             exams::save_exam,
             exams::delete_exam,
             escape_room::escape_start,
+            knight_rescue::knight_save,
+            knight_rescue::knight_list,
             escape_room::escape_restart,
             game_presets::list_game_presets,
             game_presets::save_game_preset,

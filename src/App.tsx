@@ -24,6 +24,10 @@ import EscapeHistory from './game/escape-room/EscapeHistory'
 import type { EscapeSession } from './game/escape-room/model'
 import escapeArt from './assets/escape-classroom.png'
 import './game/escape-room/escape.css'
+import KnightSetup, { KnightArt } from './game/knight-rescue/KnightSetup'
+import KnightPlay from './game/knight-rescue/KnightPlay'
+import KnightHistory from './game/knight-rescue/KnightHistory'
+import type { GameState as KnightState } from './game/knight-rescue/GameState'
 
 const licenseDate = (expiry: number) => new Intl.DateTimeFormat('vi-VN', {
   day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh',
@@ -49,6 +53,7 @@ export default function App() {
   const [game, setGame] = useState<{ initial: Session; students: Student[]; audio?: AudioContext; mp3?: AudioBuffer } | null>(null)
   const [result, setResult] = useState<Session | null>(null)
   const [escape, setEscape] = useState<EscapeSession>()
+  const [knight, setKnight] = useState<KnightState>()
   const [preparedRelay, setPreparedRelay] = useState<{ classroom: Classroom; config: RelayConfig; questions: Question[]; students: Student[] }>()
   const [dialog, setDialog] = useState<DialogSpec | null>(null)
   const [search, setSearch] = useState('')
@@ -323,7 +328,9 @@ export default function App() {
     <button className="icon-button delete" title="Xóa" aria-label={'Xóa ' + item.name} onClick={() => deleteDialog(kind, item.id, item.name)}><Trash2 size={16}/></button>
   </div>
   let body: ReactNode
-  if (escape) {
+  if (knight) {
+    body = <KnightPlay key={knight.id} initial={knight} back={() => { setKnight(undefined); navigate(page === 'history' ? 'history' : 'games') }} replay={() => { setKnight(undefined); navigate(classroom ? 'knight' : 'schools') }}/>
+  } else if (escape) {
     body = <EscapePlay key={escape.id} initial={escape} back={() => {
       setEscape(undefined)
       if (page !== 'history' && page !== 'presets') navigate('games')
@@ -418,6 +425,10 @@ export default function App() {
               <p>Khám phá căn phòng, giải mật mã và tìm đường thoát hiểm.</p>
               <button className="card-link" disabled={!school || !classroom} onClick={() => navigate('escape')}>Thiết lập trò chơi <ArrowRight size={16}/></button>
             </article>
+            <article className="school-card panel"><KnightArt/><h3>Hiệp Sĩ Cứu Mèo</h3>
+              <p>Vượt qua những thử thách kiến thức, chiến đấu với quái vật và giải cứu chú mèo đáng yêu!</p>
+              <button className="card-link" disabled={!school || !classroom} onClick={() => navigate('knight')}>Thiết lập <ArrowRight size={16}/></button>
+            </article>
           </div>
         </div>
         break
@@ -434,6 +445,9 @@ export default function App() {
             setEscape(session)
           }}/>
         break
+      case 'knight':
+        section = school && classroom && <KnightSetup key={classroom.id} school={school} classroom={classroom} back={() => navigate('games')} open={setKnight}/>
+        break
       case 'setup':
         section = <Setup active={active} total={students.length} school={school?.name ?? ''} classroom={classroom?.name ?? ''} settings={settings}
           setSettings={configure} start={() => void play()} back={() => navigate('games')} openQuestions={() => navigate('questions')} busy={busy} pro={license?.pro} upgrade={() => void proDialog()}/>
@@ -448,6 +462,7 @@ export default function App() {
           </article>)}
           {!history.length && <Empty title="Chưa có lượt chơi" message="Kết quả sẽ xuất hiện sau khi hoàn thành hoặc kết thúc một lượt." icon="history"/>}
           <EscapeHistory search={search} open={setEscape}/>
+          <KnightHistory search={search} open={setKnight}/>
         </div>
         break
       case 'backup':
@@ -468,8 +483,8 @@ export default function App() {
   }
   return <>
     {body}
-    <UpdatePanel slot={updateSlot} blocked={!ready || !!pending || busy || !!game || !!escape || !!result || relayActive || !!dialog || purchaseOpen}/>
-    {notice && !game && !escape && <div className="toast" role="status"><Sparkles size={17}/>{notice}<button className="icon-button" aria-label="Đóng thông báo" onClick={() => setNotice('')}><X size={16}/></button></div>}
+    <UpdatePanel slot={updateSlot} blocked={!ready || !!pending || busy || !!game || !!escape || !!knight || !!result || relayActive || !!dialog || purchaseOpen}/>
+    {notice && !game && !escape && !knight && <div className="toast" role="status"><Sparkles size={17}/>{notice}<button className="icon-button" aria-label="Đóng thông báo" onClick={() => setNotice('')}><X size={16}/></button></div>}
     {dialog && <Modal spec={dialog} close={() => setDialog(null)}/>}
     {purchaseAvailable && <ProPurchase open={purchaseOpen} close={() => setPurchaseOpen(false)} license={license}
       activated={(status) => { setLicense(status); updated('Đã kích hoạt FunChoice Pro.') }}/>}

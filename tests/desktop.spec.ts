@@ -10,6 +10,99 @@ let browser: Browser | undefined
 let app: ChildProcess | undefined
 let data: string
 
+test('Windows: Hiệp Sĩ Cứu Mèo chơi offline, tiếp tục phiên, hồi máu, Boss và Game Over', async ({}, info) => {
+  test.setTimeout(180_000)
+  data = await mkdtemp(resolve(tmpdir(), 'funchoice-knight-'))
+  let page = await launch()
+  const errors: string[] = []
+  page.on('pageerror', e => errors.push(e.message))
+  const invoke = <T,>(command: string, args: Record<string, unknown>) => page.evaluate(({ command, args }) => {
+    return (window as unknown as { __TAURI_INTERNALS__: { invoke: (name: string, args: Record<string, unknown>) => Promise<T> } }).__TAURI_INTERNALS__.invoke(command, args)
+  }, { command, args })
+  const schoolId = await invoke<string>('save_school', { name: 'Trường Hiệp Sĩ', theme: 'rural' })
+  const classroomId = await invoke<string>('save_classroom', { schoolId, name: 'Lớp Cứu Mèo' })
+  const bank = [
+    { id: 'a', text: 'Một cộng một bằng bao nhiêu?', answer: '2', options: ['1', '2'], correctOptions: [1] },
+    { id: 'b', text: 'Chọn hai số chẵn.', answer: '2, 4', options: ['2', '3', '4'], correctOptions: [0, 2] },
+    { id: 'c', text: 'Kể tên một loài vật em yêu quý.', answer: null, options: [], correctOptions: [] },
+    { id: 'd', text: 'Thủ đô Việt Nam?', answer: 'Hà Nội', options: [], correctOptions: [] },
+    { id: 'e', text: 'Hai nhân ba bằng bao nhiêu?', answer: '6', options: ['6', '8'], correctOptions: [0] },
+  ]
+  await invoke('save_class_question_plan', { classroomId, plan: { bank, turns: [] } })
+  await page.reload()
+  const openSetup = async () => {
+    await page.getByRole('button', { name: 'Xem lớp học' }).click()
+    await page.getByRole('button', { name: 'Xem học sinh' }).click()
+    await page.getByRole('button', { name: 'Cấu hình trò chơi', exact: true }).click()
+    await page.getByRole('article').filter({ has: page.getByRole('heading', { name: 'Hiệp Sĩ Cứu Mèo', exact: true }) }).getByRole('button', { name: 'Thiết lập', exact: true }).click()
+  }
+  await openSetup()
+  await page.getByLabel('Số đợt tấn công', { exact: true }).fill('3')
+  await page.getByLabel('Số rương hồi máu (0 để tắt)').fill('1')
+  await page.getByLabel('Số câu Boss bổ sung').fill('1')
+  await page.getByLabel('Đếm ngược bắt đầu').selectOption('0')
+  await page.getByLabel('Tốc độ di chuyển').selectOption('2')
+  await page.getByLabel('Chọn ngẫu nhiên câu chưa gán').uncheck()
+  await page.getByLabel('Âm thanh', { exact: true }).uncheck()
+  await page.getByRole('button', { name: 'Bắt đầu giải cứu' }).click()
+  await page.getByRole('heading', { name: bank[0].text, exact: true }).waitFor()
+  await page.setViewportSize({ width: 1366, height: 768 })
+  await page.screenshot({ path: info.outputPath('knight-1366-question.png') })
+  await page.getByRole('button', { name: 'A 1', exact: true }).click()
+  await expect(page.getByLabel('2 mạng')).toBeVisible()
+  const stored = await invoke<{ id: string; phase: string; answers: unknown[]; health: number }[]>('knight_list', { classroomId })
+  expect(stored[0].answers).toHaveLength(1)
+  expect(stored[0].health).toBe(2)
+  await close()
+  page = await launch()
+  page.on('pageerror', e => errors.push(e.message))
+  await openSetup()
+  await page.getByRole('button', { name: /Tiếp tục ·/ }).click()
+  await page.getByRole('button', { name: 'Tiếp tục', exact: true }).last().click()
+  await page.getByRole('heading', { name: bank[1].text, exact: true }).waitFor()
+  await page.getByRole('button', { name: 'A 2', exact: true }).click()
+  await page.getByRole('button', { name: 'C 4', exact: true }).click()
+  await page.getByRole('button', { name: 'Xem kết quả', exact: true }).click()
+  await page.getByRole('heading', { name: bank[2].text, exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Dừng giờ để chấm' }).click()
+  await expect(page.getByRole('timer')).toHaveText('Đang chấm')
+  await page.getByRole('button', { name: 'Giáo viên: Đúng' }).click()
+  await expect(page.getByLabel('3 mạng')).toBeVisible()
+  await page.getByRole('heading', { name: bank[3].text, exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Hiện đáp án' }).click()
+  await expect(page.getByText('Hà Nội', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Giáo viên: Đúng' }).click()
+  await page.getByRole('heading', { name: bank[4].text, exact: true }).waitFor()
+  await page.setViewportSize({ width: 1920, height: 1080 })
+  await page.screenshot({ path: info.outputPath('knight-1920-boss.png') })
+  await page.getByRole('button', { name: 'A 6', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'GIẢI CỨU THÀNH CÔNG!' })).toBeVisible({ timeout: 16000 })
+  const completed = await invoke<{ phase: string; answers: unknown[]; health: number; wavesDone: number }[]>('knight_list', { classroomId })
+  expect(completed[0]).toMatchObject({ phase: 'completed', health: 3, wavesDone: 3 })
+  expect(completed[0].answers).toHaveLength(5)
+  await page.getByRole('button', { name: 'Xem kết quả', exact: true }).click()
+  await expect(page.locator('.knight-answer-list li')).toHaveCount(5)
+  await page.screenshot({ path: info.outputPath('knight-rescued.png') })
+  await page.getByRole('button', { name: 'Chơi lại', exact: true }).click()
+  await page.getByLabel('Số đợt tấn công', { exact: true }).fill('3')
+  await page.getByLabel('Số rương hồi máu (0 để tắt)').fill('0')
+  await page.getByLabel('Boss cuối', { exact: true }).uncheck()
+  await page.getByLabel('Mạng bắt đầu', { exact: true }).fill('1')
+  await page.getByLabel('Thời gian trả lời').selectOption('10')
+  await page.getByLabel('Đếm ngược bắt đầu').selectOption('0')
+  await page.getByLabel('Chọn ngẫu nhiên câu chưa gán').uncheck()
+  await page.getByLabel('Âm thanh', { exact: true }).uncheck()
+  await page.getByRole('button', { name: 'Bắt đầu giải cứu' }).click()
+  await page.getByRole('heading', { name: bank[0].text, exact: true }).waitFor()
+  await expect(page.getByRole('heading', { name: 'GAME OVER', exact: true })).toBeVisible({ timeout: 16000 })
+  const failed = await invoke<{ phase: string; health: number; answers: { timeout: boolean }[] }[]>('knight_list', { classroomId })
+  await info.attach('knight-failed-snapshot', { body: JSON.stringify(failed[0], null, 2), contentType: 'application/json' })
+  expect(failed[0]).toMatchObject({ phase: 'failed', health: 0 })
+  expect(failed[0].answers).toHaveLength(1)
+  expect(failed[0].answers[0]).toMatchObject({ timeout: true })
+  expect(errors).toEqual([])
+})
+
 function issue(machine: string, expiry = 'forever') {
   return execFileSync('python', ['scripts/funchoice-keygen.py', '--issue', expiry, '--machine', machine], {
     encoding: 'utf8', env: { ...process.env, FUNCHOICE_LEDGER_PATH: resolve(data, 'issued-machines.sqlite') },

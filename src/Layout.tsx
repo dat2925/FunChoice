@@ -47,6 +47,7 @@ export function Hero({ title, description, button, onAction }: { title: ReactNod
 }
 
 const labels: Record<Page, string> = {
+  knight: 'Hiệp Sĩ Cứu Mèo',
   schools: 'Trường học', classrooms: 'Lớp học', students: 'Học sinh',
   questions: 'Chuẩn bị câu hỏi', games: 'Chọn trò chơi', setup: 'Thiên thạch', relay: 'Tiếp sức đấu đội', escape: 'Căn phòng bí ẩn',
   presets: 'Cấu hình đã lưu', exams: 'Đề thi và câu hỏi', history: 'Lịch sử chọn', backup: 'Sao lưu dữ liệu',

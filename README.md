@@ -6,7 +6,7 @@
 
 1. Tải bộ cài Windows x64 từ [trang FunChoice](https://dat2925.github.io/FunChoice/), chạy tệp rồi mở ứng dụng từ menu Start.
 2. Thêm trường và lớp. Trong lớp, thêm từng học sinh hoặc chọn **Nhập Excel / CSV**.
-3. Mở **Cấu hình trò chơi** và chọn **Thiên thạch**, **Tiếp sức đấu đội** hoặc **Căn phòng bí ẩn**. Với Thiên thạch, chọn số học sinh, chế độ và hiệu ứng, rồi chọn **Bắt đầu trò chơi**. Dùng **Toàn màn hình** để sân chơi phủ kín màn hình. Nhấn **Esc** để hiện lại các nút điều khiển.
+3. Mở **Cấu hình trò chơi** và chọn **Thiên thạch**, **Tiếp sức đấu đội**, **Căn phòng bí ẩn** hoặc **Hiệp Sĩ Cứu Mèo**. Với Thiên thạch, chọn số học sinh, chế độ và hiệu ứng, rồi chọn **Bắt đầu trò chơi**. Dùng **Toàn màn hình** để sân chơi phủ kín màn hình. Nhấn **Esc** để hiện lại các nút điều khiển.
 4. Sau lượt chơi, sao chép hoặc xuất kết quả CSV. Mục **Lịch sử chọn** lưu thứ tự công bố, thời gian, chế độ, trường và lớp.
 5. Nếu đóng ứng dụng giữa lượt, chọn **Tiếp tục lượt** khi mở lại. Nút **Kết thúc** lưu các kết quả đã công bố và đóng lượt.
 
