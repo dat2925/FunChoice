@@ -50,6 +50,12 @@ figcaption { padding: 11px 14px; font-size: 13px; line-height: 1.4; }
 .escape-copy ul { display: grid; gap: 5px; margin: 17px 0 0; padding-left: 19px; color: #f2dfcd; }
 .escape-copy li::marker { color: #ffcf94; }
 .escape-preview img { width: 100%; }
+.knight-showcase { background: #e8f3ee; border-color: #bdd9cc; color: #244c42; }
+.knight-showcase .overline, .knight-showcase li::marker { color: #356c58; }
+.knight-showcase p:not(.overline), .knight-showcase ul { color: #365c50; }
+.knight-preview { padding: clamp(16px, 2.5vw, 30px); }
+.knight-preview img { border-radius: 12px; }
+.knight-preview figcaption { color: #365c50; }
 .game-card { padding: clamp(20px, 3.1vw, 36px); border: 1px solid var(--line); border-radius: 16px; background: #fff; }
 .game-card.meteor { background: #f0e9ff; }
 .game-card.relay { background: #fdf0df; border-color: #f0dac2; }
